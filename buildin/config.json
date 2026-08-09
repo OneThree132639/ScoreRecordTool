@@ -1,0 +1,228 @@
+{
+	"button": {
+		"easy": {
+			"normal": {
+				"background-color": "#5c5c7d", 
+				"border-color": "#1ac372", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"hover": {
+				"background-color": "#11dd77", 
+				"border-color": "#88eeba", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"pressed": {
+				"background-color": "#11dd77", 
+				"border-color": "#88eeba", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"disabled": {
+				"background-color": "#888888", 
+				"border-color": "#cccccc", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}
+		}, 
+		"normal": {
+			"normal": {
+				"background-color": "#5c5c7d", 
+				"border-color": "#3f7c9f", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"hover": {
+				"background-color": "#33ccff", 
+				"border-color": "#96d9f2", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"pressed": {
+				"background-color": "#33ccff", 
+				"border-color": "#96d9f2", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"disabled": {
+				"background-color": "#888888", 
+				"border-color": "#cccccc", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}
+		}, 
+		"hard": {
+			"normal": {
+				"background-color": "#5c5c7d", 
+				"border-color": "#d5ad16", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"hover": {
+				"background-color": "#ffcc00", 
+				"border-color": "#fee681", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"pressed": {
+				"background-color": "#ffcc00", 
+				"border-color": "#fee681", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"disabled": {
+				"background-color": "#888888", 
+				"border-color": "#cccccc", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}
+		}, 
+		"expert": {
+			"normal": {
+				"background-color": "#5c5c7d", 
+				"border-color": "#ff4477", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"hover": {
+				"background-color": "#ff4477", 
+				"border-color": "#ffa2bb", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"pressed": {
+				"background-color": "#ff4477", 
+				"border-color": "#ffa2bb", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"disabled": {
+				"background-color": "#888888", 
+				"border-color": "#cccccc", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}
+		}, 
+		"master": {
+			"normal": {
+				"background-color": "#5c5c7d", 
+				"border-color": "#78419c", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"hover": {
+				"background-color": "#cc33ff", 
+				"border-color": "#db95f4", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"pressed": {
+				"background-color": "#cc33ff", 
+				"border-color": "#db95f4", 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"disabled": {
+				"background-color": "#888888", 
+				"border-color": "#cccccc", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}
+		}, 
+		"append": {
+			"normal": {
+				"background-color": "#5c5c7d", 
+				"border-color": ["#b493ff", "#ff7fe4"], 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"hover": {
+				"background-color": ["#b493ff", "#ff7fe4"], 
+				"border-color": ["#d6c7fe", "#d5a9d1"], 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"pressed": {
+				"background-color": ["#b493ff", "#ff7fe4"], 
+				"border-color": ["#d6c7fe", "#d5a9d1"], 
+				"font-color": "#444466", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}, 
+			"disabled": {
+				"background-color": "#888888", 
+				"border-color": "#cccccc", 
+				"font-color": "#ffffff", 
+				"font-family": "FOT-RodinNTLG Pro", 
+				"font-weight": "normal", 
+				"font-style": "normal"
+			}
+		}
+	}, 
+	"group": {
+		"vs": {
+			"color": "#00cdba"
+		}, 
+		"ln": {
+			"color": "#4455DD"
+		}, 
+		"mmj": {
+			"color": "#6CCB20"
+		}, 
+		"vbs": {
+			"color": "#EE1166"
+		}, 
+		"ws": {
+			"color": "#FF9900"
+		}, 
+		"ng": {
+			"color": "#884499"
+		}
+	}
+}
