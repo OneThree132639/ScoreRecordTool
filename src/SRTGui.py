@@ -59,7 +59,7 @@ class MainWindow(QMainWindow):
 	update_done = pyqtSignal()
 
 	def __init__(self, data_dir: str, buildin_dir: str, 
-			parent: Optional[QWidget]=None
+			resource_dir: str, parent: Optional[QWidget]=None
 		): 
 		super().__init__(parent)
 		self.setWindowTitle("Score Record Tool")
@@ -69,7 +69,8 @@ class MainWindow(QMainWindow):
 
 		self.buildin_dir = buildin_dir
 		self.data_dir = data_dir
-		self.data_manager = DataManager(data_dir, buildin_dir)
+		self.resource_dir = resource_dir
+		self.data_manager = DataManager(data_dir, buildin_dir, resource_dir)
 
 		main_widget = QWidget(self)
 		self.left_layout = QVBoxLayout()

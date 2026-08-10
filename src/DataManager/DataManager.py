@@ -51,9 +51,10 @@ class DataManager:
 
 	cover_size = 740 # pixels
 
-	def __init__(self, data_dir: str, buildin_dir: str): 
+	def __init__(self, data_dir: str, buildin_dir: str, resource_dir: str): 
 		self.data_dir = data_dir
 		self.buildin_dir = buildin_dir
+		self.resource_dir = resource_dir
 
 		self.json_dir = os.path.join(data_dir, "json")
 		self.table_dir = os.path.join(data_dir, "table")
@@ -269,7 +270,7 @@ class DataManager:
 		assert self.musicArtists is not None
 
 		def apply_func(row: pd.Series, col_label: str, func: Callable[[str], str]) -> str: 
-			logging.debug("Current row: \n%s", row)
+			# logging.debug("Current row: \n%s", row)
 			return func(row[col_label])
 		
 		
@@ -288,6 +289,7 @@ class DataManager:
 		table["artistsPronunciationKatakana"] = table.apply(
 			lambda row: apply_func(row, "artistsPronunciation", self._hiraganaToKatakana), axis=1
 		)
+		logging.debug("table columns: {}".format(table.columns))
 		table.drop(columns=[
 			"releaseConditionId_musics", "categories", "dancerCount", "selfDancerPosition", "assetbundleName", 
 			"liveTalkBackgroundAssetbundleName", "releasedAt", "liveStageId", "fillerSec", "isNewlyWrittenMusic", 
@@ -365,10 +367,10 @@ class DataManager:
 		array_path = os.path.join(self.binary_dir, "cover_array.npy")
 		index_dict_path = os.path.join(self.binary_dir, "cover_index_dict.json")
 		if not os.path.exists(array_path): 
-			buildin_array_split_path = os.path.join(self.buildin_dir, "binary", "cover_splits")
+			buildin_array_split_path = os.path.join(self.resource_dir, "binary", "cover_splits")
 			outputfile_name = "cover_array.npz"
 			temp_array_path = os.path.join(self.binary_dir, outputfile_name)
-			buildin_index_dict_path = os.path.join(self.buildin_dir, "binary", "cover_index_dict.json")
+			buildin_index_dict_path = os.path.join(self.resource_dir, "binary", "cover_index_dict.json")
 			shutil.copy(buildin_index_dict_path, index_dict_path)
 			merge = Merge(buildin_array_split_path, self.binary_dir, outputfile_name)
 			merge.merge()
@@ -433,7 +435,7 @@ class DataManager:
 			return json.load(f)
 
 	def loadBinaryArray(self, array_name: str) -> np.ndarray: 
-		array_path = os.path.join(self.buildin_dir, "binary", "{}.npy".format(array_name))
+		array_path = os.path.join(self.resource_dir, "binary", "{}.npy".format(array_name))
 		return np.load(array_path, "r")
 
 	def loadLocalResources(self) -> None: 

@@ -19,3 +19,7 @@ build/**
 dist/**
 ScoreRecordTool.spec
 buildapp.sh
+
+resource/**
+resource.zip
+server/config.json
