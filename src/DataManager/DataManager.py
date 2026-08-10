@@ -8,9 +8,10 @@ import pandas as pd
 import requests
 import shutil
 
+from filesplit.merge import Merge
 from io import BytesIO
 from PIL import Image
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
 
 class DownloadStatus(enum.Enum): 
 	UNMODIFIED = "unmodified"
@@ -212,7 +213,10 @@ class DataManager:
 			self.loadCsv(db_name)
 		elif status == DownloadStatus.FAIL: 
 			logging.warning("Failed to download JSON data, try to load local data")
-			self.loadCsv(db_name)
+			try: 
+				self.loadCsv(db_name)
+			except FileNotFoundError: 
+				logging.warning("Failed to load local data. Please try download later. ")
 		elif status == DownloadStatus.UNMODIFIED: 
 			logging.debug("JSON data not modified since last download")
 			self.loadCsv(db_name)
@@ -263,6 +267,10 @@ class DataManager:
 		assert self.musics is not None
 		assert self.musicDifficulties is not None
 		assert self.musicArtists is not None
+
+		def apply_func(row: pd.Series, col_label: str, func: Callable[[str], str]) -> str: 
+			logging.debug("Current row: \n%s", row)
+			return func(row[col_label])
 		
 		table = pd.merge(
 			self.musics, self.musicDifficulties, left_on="id", right_on="musicId", how="inner", 
@@ -270,11 +278,15 @@ class DataManager:
 		)
 		# "Asia/Shanghai" for UTC+8, "Asia/Tokyo" for UTC+9
 		table["publish-date"] = pd.to_datetime(table["publishedAt"], unit="ms", utc=True).dt.tz_convert("Asia/Shanghai")
-		table["pronunciationKatakana"] = table["pronunciation"].apply(self._hiraganaToKatakana)
+		table["pronunciationKatakana"] = table.apply(
+			lambda row: apply_func(row, "pronunciation", self._hiraganaToKatakana), axis=1
+		)
 
 		table["artistsName"] = table["creatorArtistId"].map(self.musicArtists.set_index("id")["name"])
 		table["artistsPronunciation"] = table["creatorArtistId"].map(self.musicArtists.set_index("id")["pronunciation"])
-		table["artistsPronunciationKatakana"] = table["artistsPronunciation"].apply(self._hiraganaToKatakana)
+		table["artistsPronunciationKatakana"] = table.apply(
+			lambda row: apply_func(row, "artistsPronunciation", self._hiraganaToKatakana), axis=1
+		)
 		table.drop(columns=[
 			"releaseConditionId_musics", "categories", "dancerCount", "selfDancerPosition", "assetbundleName", 
 			"liveTalkBackgroundAssetbundleName", "releasedAt", "liveStageId", "fillerSec", "isNewlyWrittenMusic", 
@@ -352,11 +364,16 @@ class DataManager:
 		array_path = os.path.join(self.binary_dir, "cover_array.npy")
 		index_dict_path = os.path.join(self.binary_dir, "cover_index_dict.json")
 		if not os.path.exists(array_path): 
-			buildin_array_path = os.path.join(self.buildin_dir, "binary", "cover_array.npz")
+			buildin_array_split_path = os.path.join(self.buildin_dir, "binary", "cover_splits")
+			outputfile_name = "cover_array.npz"
+			temp_array_path = os.path.join(self.binary_dir, outputfile_name)
 			buildin_index_dict_path = os.path.join(self.buildin_dir, "binary", "cover_index_dict.json")
 			shutil.copy(buildin_index_dict_path, index_dict_path)
-			with np.load(buildin_array_path) as data: 
-				np.save(array_path, data["array"])
+			merge = Merge(buildin_array_split_path, self.binary_dir, outputfile_name)
+			merge.merge()
+			with np.load(temp_array_path) as data: 
+				np.save(array_path, data["array"], allow_pickle=False)
+			os.remove(temp_array_path)
 		
 		self.cover_array = np.load(array_path)
 		with open(index_dict_path, "r", encoding='utf-8') as f:
@@ -383,17 +400,13 @@ class DataManager:
 				continue
 			try: 
 				image_array = np.array(self.loadCover(music_id))
-				logging.debug("array shape: %s", image_array.shape)
 				images.append(np.expand_dims(image_array, axis=0))
 			except FileNotFoundError: 
 				logging.warning("Cover not found for music ID: %s", music_id)
 				continue
 			self.cover_index_dict[music_id] = count
 			count += 1
-		logging.debug("cover array shape: %s", None if self.cover_array is None else self.cover_array.shape)
-		logging.debug("num of new images: %s", len(images))
 		self.cover_array = np.concatenate([self.cover_array] + images, axis=0) if self.cover_array is not None else np.stack(images)
-		logging.debug("new cover array shape: %s", self.cover_array.shape)
 
 	def loadCover(self, music_id: int) -> Image.Image: 
 		filepath = os.path.join(self.cover_dir, "{}.png".format(str(music_id).zfill(3)))

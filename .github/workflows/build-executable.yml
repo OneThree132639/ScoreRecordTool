@@ -38,10 +38,11 @@ jobs:
           pyinstaller --clean `
             --onefile `
             --windowed `
-            --name="Score Record Tool" `
+            --name="ScoreRecordTool" `
             --icon="buildin/icon/icon.ico" `
             --add-data "buildin;buildin" `
             main.py
+        continue-on-error: false
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -83,7 +84,7 @@ jobs:
          run: |
            pyinstaller --clean \
              --windowed \
-             --name="Score Record Tool" \
+             --name="ScoreRecordTool" \
              --icon="buildin/icon/icon.icns" \
              --add-data "buildin:buildin" \
              main.py
@@ -102,7 +103,7 @@ jobs:
              --window-size 800 400 \
              --icon-size 100 \
              --text-size 12 \
-             --icon "Score-Record-Tool.app" 200 150 \
+             --icon "ScoreRecordTool.app" 200 150 \
              --app-drop-link 600 150 \
              --eula "LICENSE" \
              "dist/Score-Record-Tool.dmg" \
