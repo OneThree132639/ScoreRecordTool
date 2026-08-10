@@ -272,6 +272,7 @@ class DataManager:
 			logging.debug("Current row: \n%s", row)
 			return func(row[col_label])
 		
+		
 		table = pd.merge(
 			self.musics, self.musicDifficulties, left_on="id", right_on="musicId", how="inner", 
 			suffixes=("_musics", "_musicDifficulties")
