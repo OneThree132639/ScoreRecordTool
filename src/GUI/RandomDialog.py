@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import (
 	pyqtSignal, Qt
@@ -135,6 +135,13 @@ class RandomLevelWidget(QWidget):
 			max_level = self.valid_max_level
 		return (min_level, max_level)
 
+	def getCurrentLevelRangeConfig(self) -> Dict[str, int]: 
+		min_level, max_level = self.getCurrentLevelRange()
+		return {
+			"min_level": min_level, 
+			"max_level": max_level
+		}
+
 	def setCurrentLevelRange(self, min_level: int, max_level: int) -> None: 
 		self.min_level.setText(str(min_level))
 		self.max_level.setText(str(max_level))
@@ -144,15 +151,24 @@ class RandomDialog(QDialog):
 	button_width = 120
 	button_height = 40
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, default_option: Dict[str, Any]={}, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.my_layout = QVBoxLayout(self)
 		self.setLayout(self.my_layout)
 
-		self.song_range = OptionButtonSetWidget("難易度", ["現在の難易度", "複数の難易度"], "現在の難易度", self)
-		self.difficulty_checkbox_set = OptionCheckBoxSetWidget("難易度選択", ["EASY", "NORMAL", "HARD", "EXPERT", "MASTER", "APPEND"], self)
+		self.song_range = OptionButtonSetWidget(
+			"難易度", ["現在の難易度", "複数の難易度"], default_option.get("song_range", "現在の難易度"), self
+		)
+		self.difficulty_checkbox_set = OptionCheckBoxSetWidget(
+			"難易度選択", ["EASY", "NORMAL", "HARD", "EXPERT", "MASTER", "APPEND"], 
+			default_options=default_option.get("difficulty_checkbox_set", []), parent=self
+		)
 		self._onSongRangeButtonClicked(self.song_range.getCurrentOption())
-		self.level_widget = RandomLevelWidget(parent=self)
+		level_range = default_option.get("level_widget", (5, 38))
+		self.level_widget = RandomLevelWidget(
+			level_range[0], level_range[1], 
+			parent=self
+		)
 
 		self.cancel_button = GeneralClickButton(self.button_width, self.button_height, QColor(255, 255, 255), "キャンセル", self)
 		self.accept_button = GeneralClickButton(self.button_width, self.button_height, QColor("#77EEDD"), "決定", self)
@@ -179,6 +195,13 @@ class RandomDialog(QDialog):
 			self.level_widget.getCurrentLevelRange()
 		)
 
+	def getCurrentOptionsConfig(self) -> Dict[str, Any]: 
+		return {
+			"song_range": self.song_range.getCurrentOption(), 
+			"difficulty_checkbox_set": self.difficulty_checkbox_set.getCurrentOptions(), 
+			"level_widget": self.level_widget.getCurrentLevelRange()
+		}
+
 	def setCurrentOptions(self, options: Tuple[str, List[str], Tuple[int, int]]) -> None: 
 		song_range_option, difficulty_options, level_range = options
 		self.song_range.setCurrentOption(song_range_option)
@@ -202,12 +225,15 @@ class RandomWidget(QWidget):
 
 	option_changed = pyqtSignal()
 
-	def __init__(self, get_icon_func: Callable[[str], np.ndarray], parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, 
+			get_icon_func: Callable[[str], np.ndarray], default_option: Dict[str, Any]={}, 
+			parent: Optional[QWidget]=None
+		) -> None: 
 		super().__init__(parent)
 		self.get_icon_func = get_icon_func
 		self.random_button = RandomButton(self.get_icon_func("random-icon-array"), self)
 		self.setting_button = RandomButton(self.get_icon_func("random-setting-array"), self)
-		self.setting_dialog = RandomDialog(self)
+		self.setting_dialog = RandomDialog(default_option, self)
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.addWidget(self.random_button)
 		self.my_layout.addWidget(self.setting_button)

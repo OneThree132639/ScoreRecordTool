@@ -429,13 +429,15 @@ class OptionCheckBoxSet(QWidget):
 
 	num_col = 3
 
-	def __init__(self, option_texts: List[str], parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, option_texts: List[str], default_options: List[str]=[], parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.option_checkboxes = [OptionCheckBox(text, self) for text in option_texts]
 		self.my_layout = QGridLayout(self)
 		for idx, option_checkbox in enumerate(self.option_checkboxes): 
 			option_checkbox.setEnabled(True)
 			option_checkbox.setChecked(False)
+			if option_checkbox.getText() in default_options:
+				option_checkbox.setChecked(True)
 			self.my_layout.addWidget(option_checkbox, idx // self.num_col, idx % self.num_col)
 		self.setLayout(self.my_layout)
 
@@ -453,10 +455,13 @@ class OptionCheckBoxSet(QWidget):
 
 class OptionCheckBoxSetWidget(QWidget): 
 
-	def __init__(self, option_title: str, option_list: List[str], parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, 
+			option_title: str, option_list: List[str], 
+			default_options: List[str] = [], parent: Optional[QWidget]=None
+		) -> None: 
 		super().__init__(parent)
 		self.option_column = OptionColumn(option_title, self)
-		self.option_checkbox_set = OptionCheckBoxSet(option_list, self)
+		self.option_checkbox_set = OptionCheckBoxSet(option_list, default_options, self)
 		self.my_layout = QVBoxLayout(self)
 		self.my_layout.addWidget(self.option_column)
 		self.my_layout.addWidget(self.option_checkbox_set)

@@ -41,6 +41,13 @@ class GroupButton(BasicButton):
 			"}"
 		))
 
+	def matchGroup(self, value: Union[int, str]) -> bool: 
+		if isinstance(self.my_group, Group) and isinstance(value, int): 
+			return self.my_group.value == value
+		elif isinstance(self.my_group, str) and isinstance(value, str): 
+			return self.my_group == value
+		return False
+
 class UnitButton(GroupButton): 
 
 	unchecked_color = "#FFFFFF"
@@ -181,7 +188,7 @@ class GroupButtonSet(QListWidget):
 	def __init__(self, 
 			btn_size: int, group_masks: np.ndarray, 
 			btn_config: Dict[str, Dict[str, str]], 
-			checked_group: Union[Group, str]=Group.ALL, 
+			checked_group: Union[int, str]=0, 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -224,7 +231,7 @@ class GroupButtonSet(QListWidget):
 			self.addItem(item)
 			self.setItemWidget(item, container)
 
-			if btn.my_group == checked_group: 
+			if btn.matchGroup(checked_group): 
 				btn.setChecked(True)
 
 		palette = self.palette()
@@ -263,3 +270,20 @@ class GroupButtonSet(QListWidget):
 			if btn.isChecked(): 
 				return btn.my_group
 		return Group.ALL
+
+	def getCurrentGroupConfig(self) -> Union[int, str]: 
+		group = self.getCurrentGroup()
+		if isinstance(group, Group): 
+			return group.value
+		elif isinstance(group, str): 
+			return group
+		return group
+
+	def setCurrentGroupConfig(self, value: Union[int, str]) -> None: 
+		for btn in self.button_list: 
+			if isinstance(btn.my_group, Group) and btn.my_group.value == value: 
+				btn.setChecked(True)
+				return
+			elif isinstance(btn.my_group, str) and btn.my_group == value: 
+				btn.setChecked(True)
+				return

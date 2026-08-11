@@ -1,4 +1,6 @@
 import logging
+import json
+import os
 import pandas as pd
 import sys
 import time
@@ -10,7 +12,7 @@ from PyQt5.QtCore import (
 	pyqtSignal, QDir, QTimer
 )
 from PyQt5.QtWidgets import (
-	QApplication, QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
+	QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
 )
 
 if __package__ is None or __package__ == "": 
@@ -45,7 +47,7 @@ class Cache:
 	def __init__(self) -> None: 
 		self.music_id = 1
 		self.index = 0
-		self.filter_option = "すべて"
+		self.filter_option: Dict[str, str] = {"songs": "すべて"}
 		self.search_content = ""
 		self.random_option: Tuple[str, List[str], Tuple[int, int]] = ("現在の難易度", [], (5, 38))
 		self.group: Union[Group, str] = Group.ALL
@@ -78,6 +80,8 @@ class MainWindow(QMainWindow):
 			project_base_dir, data_dir, buildin_dir, resource_dir, 
 			self._chooseResourceFile
 		)
+		self.config = {}
+		self._loadConfig()
 
 		main_widget = QWidget(self)
 		self.left_layout = QVBoxLayout()
@@ -90,17 +94,18 @@ class MainWindow(QMainWindow):
 		self.setCentralWidget(main_widget)
 
 		self.group_button_set = GroupButtonSet(self.group_size, 
-			self.data_manager.logo_array, self.data_manager.config["group"]
+			self.data_manager.logo_array, self.data_manager.config["group"], 
+			checked_group=self.config.get("group", 0), parent=self
 		)
 		self.left_layout.addWidget(self.group_button_set)
 
-		self.search_box = SearchBox(self)
+		self.search_box = SearchBox(self.config.get("search", ""), self)
 		self.music_list = MusicList(self)
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list)
 
-		self.filter_button = FilterButton(self.filter_button_size, self)
-		self.sort_type_box = SortTypeBox(self)
+		self.filter_button = FilterButton(self.config.get("filter", {}), self.filter_button_size, self)
+		self.sort_type_box = SortTypeBox(self.config.get("sort_type", ""), self)
 		self.rightup_layout.addWidget(self.filter_button)
 		self.rightup_layout.addWidget(self.sort_type_box)
 
@@ -112,7 +117,7 @@ class MainWindow(QMainWindow):
 		self.rightmiddle_layout.addWidget(self.display_card)
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
-		self.random_widget = RandomWidget(self.data_manager.loadBinaryArray, self)
+		self.random_widget = RandomWidget(self.data_manager.loadBinaryArray, self.config.get("random", {}), self)
 		self.rightdown_layout.addWidget(self.random_widget)
 		
 		self.right_layout.addLayout(self.rightup_layout)
@@ -144,14 +149,16 @@ class MainWindow(QMainWindow):
 		if msg_box.exec() == QMessageBox.StandardButton.Ok: 
 			file_path, _ = QFileDialog.getOpenFileName(
 				self, caption="Select Resource File", 
-				directory=QDir.homePath(), 
+				directory=self.config.get("last-resource-file-dir", QDir.homePath()), 
 				filter="Zip files (*.zip)"
 			)
 
 			if file_path: 
 				with zipfile.ZipFile(file_path, "r") as zip_ref: 
 					zip_ref.extractall(self.project_base_dir)
-			return True
+				self.config["last-resource-file-dir"] = os.path.dirname(file_path)
+				self._saveConfig()
+				return True
 
 		msg_box = QMessageBox(self)
 		msg_box.setIcon(QMessageBox.Icon.Critical)
@@ -254,8 +261,8 @@ class MainWindow(QMainWindow):
 		music_ids = self.data_manager.custom_list[group]
 		return music_list[music_list["id_musics"].isin(music_ids)]
 
-	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: str) -> pd.DataFrame: 
-		match filter_option: 
+	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: Dict[str, str]) -> pd.DataFrame: 
+		match filter_option.get("songs", "すべて"): 
 			case "すべて": 
 				pass
 			case "書き下ろし楽曲": 
@@ -310,6 +317,7 @@ class MainWindow(QMainWindow):
 		self.music_list.updateDisplayCard(difficulty, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
+		self._saveConfig()
 
 	def refresh(self) -> None: 
 		group = self.group_button_set.getCurrentGroup()
@@ -325,7 +333,7 @@ class MainWindow(QMainWindow):
 		sort_tuple = ("seq", "publishedAt", "pronunciation", "playLevel")
 		sort_labels = [sort_tuple[self.sort_type_box.currentIndex()], "seq"]
 		sort_labels = list(dict.fromkeys(sort_labels))
-		music_list.sort_values(by=sort_labels, ascending=True, inplace=True)
+		music_list = music_list.sort_values(by=sort_labels, ascending=True)
 		music_list = self._filterBySearchContent(music_list, search_content)
 
 		if len(music_list) == 0: 
@@ -357,6 +365,8 @@ class MainWindow(QMainWindow):
 		self.display_card.pause()
 		self.display_card.resume()
 
+		self._saveConfig()
+
 	def randomRolling(self) -> None: 
 		self.cache.random_option = self.random_widget.setting_dialog.getCurrentOptions()
 		difficulty_type, difficulties, level_range = self.cache.random_option
@@ -385,4 +395,26 @@ class MainWindow(QMainWindow):
 		self.refresh()
 		index = self.cache.music_list.set_index("id_musics").index.get_loc(selected_music_id)
 		self.music_list.randomSmoothScrolling(index)
+
+		self._saveConfig()
+
+	def _saveConfig(self) -> None: 
+		self.config["difficulty"] = self.diff_button_set.getDifficulty().value
+		self.config["filter"] = self.filter_button.getCurrentFilterOptions()
+		self.config["group"] = self.group_button_set.getCurrentGroupConfig()
+		self.config["music_id"] = self.music_list.getCurrentMusicId()
+		self.config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
+		self.config["search"] = self.search_box.text()
+		self.config["sort_type"] = self.sort_type_box.currentText()
+
+		config_path = os.path.join(self.data_dir, "config", "config.json")
+		os.makedirs(os.path.dirname(config_path), exist_ok=True)
+		with open(config_path, "w", encoding="utf-8") as f: 
+			json.dump(self.config, f, indent=4, ensure_ascii=False)
+
+	def _loadConfig(self) -> None: 
+		config_path = os.path.join(self.data_dir, "config", "config.json")
+		if os.path.exists(config_path): 
+			with open(config_path, "r", encoding="utf-8") as f: 
+				self.config = json.load(f)
 

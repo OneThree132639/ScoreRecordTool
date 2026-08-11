@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 from PyQt5.QtCore import (
 	pyqtSignal, Qt
@@ -23,7 +23,7 @@ class FilterButton(QPushButton):
 
 	filter_option_changed = pyqtSignal()
 
-	def __init__(self, btn_size: int, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, default_options: Dict[str, str], btn_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 
 		self.btn_size = btn_size
@@ -32,7 +32,7 @@ class FilterButton(QPushButton):
 		self._filter_path = self._filterPath()
 		self._normal_pixmap = self._filterPixmap(self.normal_color)
 		self._abnormal_pixmap = self._filterPixmap(self.abnormal_color)
-		self.filter_dialog = FilterDialog(self)
+		self.filter_dialog = FilterDialog(default_options, self)
 
 		self.setFixedSize(btn_size, btn_size)
 		self.setStyleSheet((
@@ -96,16 +96,24 @@ class FilterButton(QPushButton):
 		else: 
 			self.filter_dialog.setCurrentFilterOptions(current_option)
 
+	def getCurrentFilterOptions(self) -> Dict[str, str]: 
+		return self.filter_dialog.getCurrentFilterOptions()
+
+	def setCurrentFilterOptions(self, option: Dict[str, str]) -> None: 
+		self.filter_dialog.setCurrentFilterOptions(option)
+
 
 class FilterDialog(QDialog): 
 
 	button_width = 120
 	button_height = 40
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, default_options: Dict[str, str], parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.my_layout = QVBoxLayout(self)
-		self.filter_columns = OptionButtonSetWidget("楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], "すべて", self)
+		self.filter_columns = OptionButtonSetWidget(
+			"楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], default_options.get("songs", "すべて"), self
+		)
 		self.my_layout.addWidget(self.filter_columns)
 
 		self.cancel_button = GeneralClickButton(self.button_width, self.button_height, QColor(255, 255, 255), "キャンセル", self)
@@ -123,8 +131,10 @@ class FilterDialog(QDialog):
 
 		self.setModal(True)
 
-	def getCurrentFilterOptions(self) -> str: 
-		return self.filter_columns.getCurrentOption()
+	def getCurrentFilterOptions(self) -> Dict[str, str]: 
+		return {
+			"songs": self.filter_columns.getCurrentOption()
+		}
 
-	def setCurrentFilterOptions(self, option: str) -> None: 
-		self.filter_columns.setCurrentOption(option)
+	def setCurrentFilterOptions(self, option: Dict[str, str]) -> None: 
+		self.filter_columns.setCurrentOption(option.get("songs", "すべて"))

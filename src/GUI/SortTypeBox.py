@@ -6,11 +6,11 @@ from PyQt5.QtWidgets import (
 
 class SortTypeBox(QComboBox): 
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, default: str="デフォルト", parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 
 		self.setEditable(False)
 
 		self.addItems(["デフォルト", "配信順", "50音順", "楽曲Lv.順"])
-		self.setCurrentIndex(0)
+		self.setCurrentText(default)
 		
