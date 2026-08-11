@@ -51,10 +51,15 @@ class DataManager:
 
 	cover_size = 740 # pixels
 
-	def __init__(self, data_dir: str, buildin_dir: str, resource_dir: str): 
+	def __init__(self, project_base_dir: str, 
+			data_dir: str, buildin_dir: str, resource_dir: str, 
+			choose_resource_file: Callable[[], bool]
+		): 
+		self.project_base_dir = project_base_dir
 		self.data_dir = data_dir
 		self.buildin_dir = buildin_dir
 		self.resource_dir = resource_dir
+		self.choose_resource_file = choose_resource_file
 
 		self.json_dir = os.path.join(data_dir, "json")
 		self.table_dir = os.path.join(data_dir, "table")
@@ -371,9 +376,15 @@ class DataManager:
 			outputfile_name = "cover_array.npz"
 			temp_array_path = os.path.join(self.binary_dir, outputfile_name)
 			buildin_index_dict_path = os.path.join(self.resource_dir, "binary", "cover_index_dict.json")
-			shutil.copy(buildin_index_dict_path, index_dict_path)
-			merge = Merge(buildin_array_split_path, self.binary_dir, outputfile_name)
-			merge.merge()
+			while True: 
+				try: 
+					shutil.copy(buildin_index_dict_path, index_dict_path)
+					merge = Merge(buildin_array_split_path, self.binary_dir, outputfile_name)
+					merge.merge()
+					break
+				except Exception as e: 
+					logging.warning("Error occurred when trying to access resource files: %s", e)
+					self.choose_resource_file()	
 			with np.load(temp_array_path) as data: 
 				np.save(array_path, data["array"], allow_pickle=False)
 			os.remove(temp_array_path)
@@ -435,7 +446,13 @@ class DataManager:
 			return json.load(f)
 
 	def loadBinaryArray(self, array_name: str) -> np.ndarray: 
-		array_path = os.path.join(self.resource_dir, "binary", "{}.npy".format(array_name))
+		while True: 
+			try: 
+				array_path = os.path.join(self.resource_dir, "binary", "{}.npy".format(array_name))
+				break
+			except Exception as e: 
+				logging.warning("Failed when accessing resource file: %s", e)
+				self.choose_resource_file()
 		return np.load(array_path, "r")
 
 	def loadLocalResources(self) -> None: 

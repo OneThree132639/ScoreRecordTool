@@ -51,15 +51,15 @@ if __name__ == "__main__":
 	author = "OneThree"
 	is_debug = False # False when commited
 
-	# source_dir = get_resource_path()
-	data_dir = os.path.join(get_project_base_dir(project_name, is_debug), "data")
-	resource_dir = os.path.join(get_project_base_dir(project_name, is_debug), "resource")
-	buildin_dir = os.path.join(resource_dir, "buildin")
+	project_base_dir = get_project_base_dir(project_name, is_debug)  # project data directory
+	source_dir = get_resource_path()                                 # builtin directory
+	data_dir = os.path.join(project_base_dir, "data")
+	resource_dir = os.path.join(project_base_dir, "resource")
+	buildin_dir = os.path.join(source_dir, "buildin")
 	log_dir = os.path.join(data_dir, "log")
 	font_dir = os.path.join(buildin_dir, "fonts")
 
 	os.makedirs(data_dir, exist_ok=True)
-	os.makedirs(resource_dir, exist_ok=True)
 	os.makedirs(log_dir, exist_ok=True)
 
 	logging.basicConfig(
@@ -79,6 +79,7 @@ if __name__ == "__main__":
 	app.setFont(font)
 	load_fonts(font_dir)
 	window = MainWindow(
+		project_base_dir = project_base_dir, 
 		data_dir = data_dir, 
 		buildin_dir = buildin_dir, 
 		resource_dir = resource_dir

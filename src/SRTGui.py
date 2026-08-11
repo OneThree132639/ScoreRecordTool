@@ -1,14 +1,16 @@
 import logging
 import pandas as pd
+import sys
 import time
+import zipfile
 
 from typing import Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	pyqtSignal, QTimer
+	pyqtSignal, QDir, QTimer
 )
 from PyQt5.QtWidgets import (
-	QApplication, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
+	QApplication, QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
 )
 
 if __package__ is None or __package__ == "": 
@@ -58,7 +60,8 @@ class MainWindow(QMainWindow):
 	group_size = 50
 	update_done = pyqtSignal()
 
-	def __init__(self, data_dir: str, buildin_dir: str, 
+	def __init__(self, project_base_dir: str, 
+			data_dir: str, buildin_dir: str, 
 			resource_dir: str, parent: Optional[QWidget]=None
 		): 
 		super().__init__(parent)
@@ -67,10 +70,14 @@ class MainWindow(QMainWindow):
 
 		self.cache = Cache()
 
+		self.project_base_dir = project_base_dir
 		self.buildin_dir = buildin_dir
 		self.data_dir = data_dir
 		self.resource_dir = resource_dir
-		self.data_manager = DataManager(data_dir, buildin_dir, resource_dir)
+		self.data_manager = DataManager(
+			project_base_dir, data_dir, buildin_dir, resource_dir, 
+			self._chooseResourceFile
+		)
 
 		main_widget = QWidget(self)
 		self.left_layout = QVBoxLayout()
@@ -125,6 +132,38 @@ class MainWindow(QMainWindow):
 		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
 		self.random_widget.random_button.clicked.connect(self.randomRolling)
 
+	def _chooseResourceFile(self) -> bool: 
+		msg_box = QMessageBox(self)
+		msg_box.setIcon(QMessageBox.Question)
+		msg_box.setWindowTitle("Resource File Issue")
+		msg_box.setText((
+			"Error occurred while loading resource file (not exist or errupted). \n"
+			"Please select the up-to-date resource file (zip) to continue. "
+		))
+		msg_box.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel) # type: ignore
+		if msg_box.exec() == QMessageBox.StandardButton.Ok: 
+			file_path, _ = QFileDialog.getOpenFileName(
+				self, caption="Select Resource File", 
+				directory=QDir.homePath(), 
+				filter="Zip files (*.zip)"
+			)
+
+			if file_path: 
+				with zipfile.ZipFile(file_path, "r") as zip_ref: 
+					zip_ref.extractall(self.project_base_dir)
+			return True
+
+		msg_box = QMessageBox(self)
+		msg_box.setIcon(QMessageBox.Icon.Critical)
+		msg_box.setWindowTitle("Error")
+		msg_box.setText("Failed to load resource files. Please restart the program and try again. ") 
+		msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+		centerDialog(msg_box, self)
+		msg_box.exec_()
+		sys.exit(1)
+		return False
+
+
 	def updateQuery(self) -> None: 
 		msg_box = QMessageBox(self)
 		msg_box.setIcon(QMessageBox.Icon.Question)
@@ -142,11 +181,11 @@ class MainWindow(QMainWindow):
 				msg_box = QMessageBox(self)
 				msg_box.setIcon(QMessageBox.Icon.Critical)
 				msg_box.setWindowTitle("Error")
-				msg_box.setText("Failed to load local resources. Please update the data first.") 
+				msg_box.setText("Failed to load local files. Please update the data first.") 
 				msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
 				centerDialog(msg_box, self)
 				msg_box.exec_()
-				QApplication.quit()
+				sys.exit(1)
 				return
 			self.refresh()
 
@@ -170,7 +209,7 @@ class MainWindow(QMainWindow):
 				msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
 				centerDialog(msg_box, self)
 				msg_box.exec_()
-				QApplication.quit()
+				sys.exit(1)
 				return
 			self.update_ctrl.appendTask(task_object)
 
