@@ -66,6 +66,7 @@ class MainWindow(QMainWindow):
 		self.resource_dir = resource_dir
 		self.config = {}
 		self._loadConfig()
+		self._init_config = self.config.copy()
 		self.data_manager = DataManager(
 			project_base_dir, data_dir, buildin_dir, resource_dir, 
 			self._chooseResourceFile
@@ -83,18 +84,18 @@ class MainWindow(QMainWindow):
 
 		self.group_button_set = GroupButtonSet(self.group_size, 
 			self.data_manager.logo_array, self.data_manager.config["group"], 
-			checked_group=self.config.get("group", 0), parent=self
+			checked_group=self._init_config.get("group", 0), parent=self
 		)
 		self.left_layout.addWidget(self.group_button_set)
 
-		self.search_box = SearchBox(self.config.get("search", ""), self)
+		self.search_box = SearchBox(self._init_config.get("search", ""), self)
 		self.music_list_widget = MusicListWidget(self)
 
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
 
-		self.filter_button = FilterButton(self.config.get("filter", {}), self.filter_button_size, self)
-		self.sort_type_box = SortTypeBox(self.config.get("sort_type", ""), self)
+		self.filter_button = FilterButton(self._init_config.get("filter", {}), self.filter_button_size, self)
+		self.sort_type_box = SortTypeBox(self._init_config.get("sort_type", ""), self)
 		self.rightup_layout.addWidget(self.filter_button)
 		self.rightup_layout.addWidget(self.sort_type_box)
 
@@ -106,7 +107,7 @@ class MainWindow(QMainWindow):
 		self.rightmiddle_layout.addWidget(self.display_card)
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
-		self.random_widget = RandomWidget(self.data_manager.loadBinaryArray, self.config.get("random", {}), self)
+		self.random_widget = RandomWidget(self.data_manager.loadBinaryArray, self._init_config.get("random", {}), self)
 		self.rightdown_layout.addWidget(self.random_widget)
 		
 		self.right_layout.addLayout(self.rightup_layout)
@@ -138,7 +139,7 @@ class MainWindow(QMainWindow):
 		if msg_box.exec() == QMessageBox.StandardButton.Ok: 
 			file_path, _ = QFileDialog.getOpenFileName(
 				self, caption="Select Resource File", 
-				directory=self.config.get("last-resource-file-dir", QDir.homePath()), 
+				directory=self._init_config.get("last-resource-file-dir", QDir.homePath()), 
 				filter="Zip files (*.zip)"
 			)
 
@@ -146,7 +147,6 @@ class MainWindow(QMainWindow):
 				with zipfile.ZipFile(file_path, "r") as zip_ref: 
 					zip_ref.extractall(self.project_base_dir)
 				self.config["last-resource-file-dir"] = os.path.dirname(file_path)
-				self._saveConfig()
 				return True
 
 		msg_box = QMessageBox(self)
@@ -160,10 +160,10 @@ class MainWindow(QMainWindow):
 		return False
 
 	def _initRefresh(self) -> None: 
-		difficulty = Difficulty.fromStr(self.config.get("difficulty", "easy"))
+		difficulty = Difficulty.fromStr(self._init_config.get("difficulty", "easy"))
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.refresh()
-		music_id = self.config.get("music_id", 0)
+		music_id = self._init_config.get("music_id", 0)
 		self.music_list_widget.setCurrentMusicId(music_id)
 
 	def updateQuery(self) -> None: 
@@ -317,7 +317,8 @@ class MainWindow(QMainWindow):
 			difficulties = (None, None, None, None, None, None)
 		else: 
 			difficulties = self._getMusicLevels(music_id)
-		self.diff_button_set.setLevels(difficulties, difficulty) # type: ignore
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
@@ -353,7 +354,8 @@ class MainWindow(QMainWindow):
 			music_list, vocal_list, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
 			self.data_manager.getCoverArray, music_id
 		)
-		self.diff_button_set.setLevels(difficulties, difficulty) # type: ignore
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
 		self.filter_button.setNormalState(search_content, filter_options)
 		self.display_card.pause()
@@ -403,19 +405,18 @@ class MainWindow(QMainWindow):
 		self._saveConfig()
 
 	def _saveConfig(self) -> None: 
-		config = {}
-		config["difficulty"] = self.diff_button_set.getDifficulty().value
-		config["filter"] = self.filter_button.getCurrentFilterOptions().value
-		config["group"] = self.group_button_set.getCurrentGroupConfig()
-		config["music_id"] = self.music_list_widget.getCurrentMusicId()
-		config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
-		config["search"] = self.search_box.text()
-		config["sort_type"] = self.sort_type_box.currentText()
+		self.config["difficulty"] = self.diff_button_set.getDifficulty().value
+		self.config["filter"] = self.filter_button.getCurrentFilterOptions().value
+		self.config["group"] = self.group_button_set.getCurrentGroupConfig()
+		self.config["music_id"] = self.music_list_widget.getCurrentMusicId()
+		self.config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
+		self.config["search"] = self.search_box.text()
+		self.config["sort_type"] = self.sort_type_box.currentText()
 
 		config_path = os.path.join(self.data_dir, "config", "config.json")
 		os.makedirs(os.path.dirname(config_path), exist_ok=True)
 		with open(config_path, "w", encoding="utf-8") as f: 
-			json.dump(config, f, indent=4, ensure_ascii=False)
+			json.dump(self.config, f, indent=4, ensure_ascii=False)
 
 	def _loadConfig(self) -> None: 
 		config_path = os.path.join(self.data_dir, "config", "config.json")
