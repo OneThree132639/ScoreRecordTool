@@ -263,7 +263,9 @@ class MainWindow(QMainWindow):
 			case SongType.COMMISSIONED: 
 				music_list = music_list[(music_list["seq"] // 100000).isin((17, 21, 22, 23, 24, 25, 26, 27))]
 			case SongType.HAS_APPEND: 
-				music_ids = music_list[music_list["musicDifficulty"] == "append"]["id_musics"].unique()
+				music_table = self.data_manager.music_table
+				assert music_table is not None
+				music_ids = music_table[music_table["musicDifficulty"] == "append"]["id_musics"].unique()
 				music_list = music_list[music_list["id_musics"].isin(music_ids)]
 		return music_list
 
