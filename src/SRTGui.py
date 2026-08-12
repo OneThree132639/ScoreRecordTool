@@ -109,7 +109,9 @@ class MainWindow(QMainWindow):
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
 
-		self.filter_button = FilterButton(self._init_config.get("filter", {}), int(self.height() * self.filter_size_percentage), self)
+		self.filter_button = FilterButton(
+			self._init_config.get("filter", {}), int(self.height() * self.filter_size_percentage), self
+		)
 		self.sort_type_box = SortTypeBox(int(self.height() * self.sort_type_box_height_percentage), self._init_config.get("sort_type", ""), self)
 		self.rightup_layout.addWidget(self.filter_button)
 		self.rightup_layout.addWidget(self.sort_type_box)

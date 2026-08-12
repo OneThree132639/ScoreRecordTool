@@ -105,13 +105,15 @@ class GeneralClickButton(QPushButton):
 
 class OptionButton(BasicButton): 
 
-	fixed_size = 40
-	btn_size = 32
-	highlight_size = 22
+	btn_percentage = 0.8
+	highlight_percentage = 0.5
 	checked_color = "#77EEDD"
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.fixed_size = fixed_size
+		self.btn_size = int(self.fixed_size * self.btn_percentage)
+		self.highlight_size = int(self.fixed_size * self.highlight_percentage)
 		self.setFixedSize(self.fixed_size, self.fixed_size)
 		self.setEnabled(True)
 		self.setCheckable(True)
@@ -146,13 +148,15 @@ class OptionButton(BasicButton):
 class OptionColumn(QWidget): 
 
 	padding = 2
-	font_size = 20
-	fixed_height = 30
+	font_size_percentage = 0.67
+
 	enabled_color = "#000000"
 	disabled_color = "#808080"
 
-	def __init__(self, column_text: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, column_text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.fixed_height = fixed_height
+		self.font_size = int(self.fixed_height * self.font_size_percentage)
 		self.column_text = column_text
 		self.document = QTextDocument()
 
@@ -179,16 +183,17 @@ class OptionColumn(QWidget):
 
 class OptionLabel(QLabel): 
 
-	fixed_height = 40
-	fixed_width = 120
 	font_name = "nintendo_NTLG-DB_001"
-	max_font_size = 20
+	max_font_size_percentage = 0.5
 	num_iter = 15
 	enabled_color = "#000000"
 	disabled_color = "#808080"
 
-	def __init__(self, text: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.fixed_height = fixed_height
+		self.fixed_width = fixed_height * 3
+		self.max_font_size = int(fixed_height * self.max_font_size_percentage)
 		self.my_text = text
 		self.setFixedSize(self.fixed_width, self.fixed_height)
 		self.best_size = self._fitText(self.rect())
@@ -244,10 +249,10 @@ class OptionUnit(QWidget):
 
 	spacing = 5
 
-	def __init__(self, text: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
-		self.option_button = OptionButton(self)
-		self.option_label = OptionLabel(text, self)
+		self.option_button = OptionButton(fixed_height, self)
+		self.option_label = OptionLabel(fixed_height, text, self)
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.setSpacing(self.spacing)
 		self.my_layout.addWidget(self.option_button)
@@ -257,10 +262,10 @@ class OptionButtonSet(QWidget):
 
 	num_cols = 3
 
-	def __init__(self, option_texts: List[str], default_option: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, option_texts: List[str], default_option: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		default_index = option_texts.index(default_option) if default_option in option_texts else 0
-		self.option_units = [OptionUnit(text, self) for text in option_texts]
+		self.option_units = [OptionUnit(fixed_height, text, self) for text in option_texts]
 		self.my_layout = QGridLayout(self)
 		self.button_group = QButtonGroup(self)
 		for i, option_unit in enumerate(self.option_units):
@@ -286,10 +291,10 @@ class OptionButtonSetWidget(QWidget):
 
 	button_clicked = pyqtSignal(str)
 
-	def __init__(self, option_title: str, option_list: List[str], default_option: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, option_title: str, option_list: List[str], default_option: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
-		self.option_column = OptionColumn(option_title, self)
-		self.option_button_set = OptionButtonSet(option_list, default_option, self)
+		self.option_column = OptionColumn(fixed_height, option_title, self)
+		self.option_button_set = OptionButtonSet(fixed_height, option_list, default_option, self)
 		self.my_layout = QVBoxLayout(self)
 		self.my_layout.addWidget(self.option_column)
 		self.my_layout.addWidget(self.option_button_set)
@@ -309,11 +314,13 @@ class OptionButtonSetWidget(QWidget):
 
 class OptionLineEdit(QLineEdit): 
 
-	fixed_height = 30
-	fixed_width = 60
+	fixed_height_percentage = 0.8
+	fixed_width_percentage = 1.6
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.fixed_height = int(fixed_height * self.fixed_height_percentage)
+		self.fixed_width = int(self.fixed_height * self.fixed_width_percentage)
 		self.setFixedSize(self.fixed_width, self.fixed_height)
 
 		self.glow_effect = QGraphicsDropShadowEffect()
@@ -341,13 +348,14 @@ class OptionLineEdit(QLineEdit):
 
 class OptionCheckBoxIndicator(BasicButton): 
 
-	fixed_size = 30
+	fixed_size_percentage = 0.75
 	round_radius = 5
 	checked_tick_color = "#FF77AA"
 	disabled_color = "#808080"
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.fixed_size = int(fixed_size * self.fixed_size_percentage)
 		self.setFixedSize(self.fixed_size, self.fixed_size)
 		self.setMask(QRegion(self.rect(), QRegion.RegionType.Rectangle))
 		self.setEnabled(True)
@@ -402,10 +410,10 @@ class OptionCheckBox(QWidget):
 
 	spacing = 20
 
-	def __init__(self, text: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
-		self.checkbox_indicator = OptionCheckBoxIndicator(self)
-		self.option_label = OptionLabel(text, self)
+		self.checkbox_indicator = OptionCheckBoxIndicator(fixed_height, self)
+		self.option_label = OptionLabel(fixed_height, text, self)
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.setSpacing(self.spacing)
 		self.my_layout.addWidget(self.checkbox_indicator)
@@ -429,9 +437,9 @@ class OptionCheckBoxSet(QWidget):
 
 	num_col = 3
 
-	def __init__(self, option_texts: List[str], default_options: List[str]=[], parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_size: int, option_texts: List[str], default_options: List[str]=[], parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
-		self.option_checkboxes = [OptionCheckBox(text, self) for text in option_texts]
+		self.option_checkboxes = [OptionCheckBox(fixed_size, text, self) for text in option_texts]
 		self.my_layout = QGridLayout(self)
 		for idx, option_checkbox in enumerate(self.option_checkboxes): 
 			option_checkbox.setEnabled(True)
@@ -455,13 +463,13 @@ class OptionCheckBoxSet(QWidget):
 
 class OptionCheckBoxSetWidget(QWidget): 
 
-	def __init__(self, 
+	def __init__(self, fixed_size: int, 
 			option_title: str, option_list: List[str], 
 			default_options: List[str] = [], parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
-		self.option_column = OptionColumn(option_title, self)
-		self.option_checkbox_set = OptionCheckBoxSet(option_list, default_options, self)
+		self.option_column = OptionColumn(fixed_size, option_title, self)
+		self.option_checkbox_set = OptionCheckBoxSet(fixed_size, option_list, default_options, self)
 		self.my_layout = QVBoxLayout(self)
 		self.my_layout.addWidget(self.option_column)
 		self.my_layout.addWidget(self.option_checkbox_set)

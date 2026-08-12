@@ -25,7 +25,10 @@ class FilterButton(QPushButton):
 
 	filter_option_changed = pyqtSignal()
 
-	def __init__(self, default_options: str, btn_size: int, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, 
+			default_options: str, btn_size: int, 
+			parent: Optional[QWidget]=None
+		) -> None: 
 		super().__init__(parent)
 
 		self.btn_size = btn_size
@@ -34,7 +37,7 @@ class FilterButton(QPushButton):
 		self._filter_path = self._filterPath()
 		self._normal_pixmap = self._filterPixmap(self.normal_color)
 		self._abnormal_pixmap = self._filterPixmap(self.abnormal_color)
-		self.filter_dialog = FilterDialog(default_options, self)
+		self.filter_dialog = FilterDialog(btn_size, default_options, self)
 
 		self.setFixedSize(btn_size, btn_size)
 		self.setStyleSheet((
@@ -113,13 +116,15 @@ class FilterButton(QPushButton):
 
 class FilterDialog(QDialog): 
 
-	button_width = 120
-	button_height = 40
+	dialog_bonus = 1.2
 
-	def __init__(self, default_options: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, btn_size: int, default_options: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		btn_size = int(btn_size * self.dialog_bonus)
+		self.button_height = btn_size
+		self.button_width = self.button_height * 3
 		self.my_layout = QVBoxLayout(self)
-		self.filter_columns = OptionButtonSetWidget(
+		self.filter_columns = OptionButtonSetWidget(btn_size, 
 			"楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], default_options, self
 		)
 		self.my_layout.addWidget(self.filter_columns)

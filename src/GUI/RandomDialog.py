@@ -27,7 +27,7 @@ class RandomButton(QPushButton):
 
 	btn_size_percentage = 0.8
 
-	def __init__(self, init_height: int,  icon_array: np.ndarray, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, init_height: int, icon_array: np.ndarray, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.init_height = init_height
 		self.btn_size = int(self.init_height * self.btn_size_percentage)
@@ -62,19 +62,21 @@ class RandomButton(QPushButton):
 
 class RandomLevelWidget(QWidget): 
 
+	label_font_size_percentage = 0.5
+
 	valid_min_level = 5
 	valid_max_level = 38
 	spacing = 5
 
-	def __init__(self, min_level: int=5, max_level: int=38, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int,  min_level: int=5, max_level: int=38, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
-		self.title = OptionColumn("レベル", self)
-		self.min_level = OptionLineEdit(self)
-		self.max_level = OptionLineEdit(self)
+		self.title = OptionColumn(fixed_height, "レベル", self)
+		self.min_level = OptionLineEdit(fixed_height, self)
+		self.max_level = OptionLineEdit(fixed_height, self)
 		self.hash_label = QLabel("-", self)
-		font = QFont("nintendo_NTLG-DB_001", 20)
+		font = QFont("nintendo_NTLG-DB_001", int(fixed_height * self.label_font_size_percentage))
 		self.hash_label.setFont(font)
-		self.hash_label.setFixedWidth(20)
+		self.hash_label.setFixedWidth(int(fixed_height * self.label_font_size_percentage))
 		self.hash_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 		self.level_widget = QWidget(self)
 		self.level_layout = QHBoxLayout(self.level_widget)
@@ -150,30 +152,31 @@ class RandomLevelWidget(QWidget):
 		
 class RandomDialog(QDialog): 
 
-	button_width = 120
-	button_height = 40
+	random_percentage = 0.9
 
-	def __init__(self, default_option: Dict[str, Any]={}, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, fixed_height: int, default_option: Dict[str, Any]={}, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.my_layout = QVBoxLayout(self)
 		self.setLayout(self.my_layout)
+		fixed_height = int(self.random_percentage * fixed_height)
+		self.fixed_height = fixed_height
+		self.fixed_width = fixed_height * 3
 
-		self.song_range = OptionButtonSetWidget(
+		self.song_range = OptionButtonSetWidget(self.fixed_height, 
 			"難易度", ["現在の難易度", "複数の難易度"], default_option.get("song_range", "現在の難易度"), self
 		)
-		self.difficulty_checkbox_set = OptionCheckBoxSetWidget(
+		self.difficulty_checkbox_set = OptionCheckBoxSetWidget(self.fixed_height, 
 			"難易度選択", ["EASY", "NORMAL", "HARD", "EXPERT", "MASTER", "APPEND"], 
 			default_options=default_option.get("difficulty_checkbox_set", []), parent=self
 		)
 		self._onSongRangeButtonClicked(self.song_range.getCurrentOption())
 		level_range = default_option.get("level_widget", (5, 38))
-		self.level_widget = RandomLevelWidget(
-			level_range[0], level_range[1], 
-			parent=self
+		self.level_widget = RandomLevelWidget(self.fixed_height, 
+			level_range[0], level_range[1], parent=self
 		)
 
-		self.cancel_button = GeneralClickButton(self.button_width, self.button_height, QColor(255, 255, 255), "キャンセル", self)
-		self.accept_button = GeneralClickButton(self.button_width, self.button_height, QColor("#77EEDD"), "決定", self)
+		self.cancel_button = GeneralClickButton(self.fixed_width, self.fixed_height, QColor(255, 255, 255), "キャンセル", self)
+		self.accept_button = GeneralClickButton(self.fixed_width, self.fixed_height, QColor("#77EEDD"), "決定", self)
 		self.cancel_button.clicked.connect(self.reject)
 		self.accept_button.clicked.connect(self.accept)
 		self.button_layout = QHBoxLayout()
@@ -234,7 +237,7 @@ class RandomWidget(QWidget):
 		self.get_icon_func = get_icon_func
 		self.random_button = RandomButton(self.init_height, self.get_icon_func("random-icon-array"), self)
 		self.setting_button = RandomButton(self.init_height, self.get_icon_func("random-setting-array"), self)
-		self.setting_dialog = RandomDialog(default_option, self)
+		self.setting_dialog = RandomDialog(self.init_height, default_option, self)
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.addWidget(self.random_button)
 		self.my_layout.addWidget(self.setting_button)

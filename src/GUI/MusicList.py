@@ -897,3 +897,8 @@ class MusicListWidget(QStackedWidget):
 		if music_list_widget is not None: 
 			return music_list_widget.music_list
 		return None
+
+	def updateCurrentMusicWidget(self) -> None: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is not None: 
+			current_list._onScrollStop()
