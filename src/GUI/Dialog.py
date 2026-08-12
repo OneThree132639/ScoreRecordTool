@@ -58,8 +58,7 @@ class MessageDialog(QDialog):
 		self.setLayout(self.main_layout)
 
 	def updateStatus(self, message: str) -> None: 
-		self.label.setText(message)
-		QApplication.processEvents()
+		self.label.setText(message) 
 
 class ProgressDialog(QDialog): 
 
@@ -87,7 +86,6 @@ class ProgressDialog(QDialog):
 		self.label.setText(message)
 		self.progress_bar.setValue(progress_value)
 		self.progress_bar.setRange(0, progress_range)
-		QApplication.processEvents()
 
 class MessageWorker(QThread): 
 

@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import requests
 import shutil
+import traceback
 
 from filesplit.merge import Merge
 from io import BytesIO
@@ -206,9 +207,9 @@ class DataManager:
 				try: 
 					self.downloadCover(row["id"], row["title"])
 				except Exception as e: 
-					logging.error("Error when downloading cover of {}: {}".format(row["title"], e))
 					continue
 			yield ("Updating cover of {}...".format(row["title"]), idx, total)
+		logging.debug("Exiting updateCovers normally")
 
 	def process(self, db_name: str) -> None: 
 		if not os.path.exists(os.path.join(self.table_dir, "{}.csv".format(db_name))): 
@@ -257,7 +258,11 @@ class DataManager:
 				logging.error("HTTP error occurred while downloading cover image from %s: %s", key, e)
 				continue
 
-			image = Image.open(BytesIO(cover_response.content))
+			try:
+				image = Image.open(BytesIO(cover_response.content))
+			except Exception as e:
+				logging.error("Image processing error: %s\n%s", e, traceback.format_exc())
+				continue
 			image = image.resize((self.cover_size, self.cover_size))
 			if image.mode != "RGBA": 
 				image = image.convert("RGBA")

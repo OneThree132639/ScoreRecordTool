@@ -63,7 +63,7 @@ if __name__ == "__main__":
 	os.makedirs(log_dir, exist_ok=True)
 
 	logging.basicConfig(
-		level=logging.INFO, # INFO when commited
+		level=logging.DEBUG, # INFO when commited
 		format="%(asctime)s [%(levelname)s] %(message)s", 
 		handlers=[
 			logging.FileHandler(os.path.join(log_dir, "app.log"), mode="w"), 
