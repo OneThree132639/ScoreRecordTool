@@ -25,10 +25,12 @@ else:
 
 class RandomButton(QPushButton): 
 
-	btn_size = 30
+	btn_size_percentage = 0.8
 
-	def __init__(self, icon_array: np.ndarray, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, init_height: int,  icon_array: np.ndarray, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.init_height = init_height
+		self.btn_size = int(self.init_height * self.btn_size_percentage)
 		self.setFixedSize(self.btn_size, self.btn_size)
 		self.my_mask = icon_array
 		self.pixmap = self._generatePixmap()
@@ -221,25 +223,24 @@ class RandomDialog(QDialog):
 
 class RandomWidget(QWidget): 
 
-	fixed_height = 50
-
 	option_changed = pyqtSignal()
 
-	def __init__(self, 
+	def __init__(self, init_height: int, 
 			get_icon_func: Callable[[str], np.ndarray], default_option: Dict[str, Any]={}, 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
+		self.init_height = init_height
 		self.get_icon_func = get_icon_func
-		self.random_button = RandomButton(self.get_icon_func("random-icon-array"), self)
-		self.setting_button = RandomButton(self.get_icon_func("random-setting-array"), self)
+		self.random_button = RandomButton(self.init_height, self.get_icon_func("random-icon-array"), self)
+		self.setting_button = RandomButton(self.init_height, self.get_icon_func("random-setting-array"), self)
 		self.setting_dialog = RandomDialog(default_option, self)
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.addWidget(self.random_button)
 		self.my_layout.addWidget(self.setting_button)
 		self.my_layout.setSpacing(50)
 		self.setLayout(self.my_layout)
-		self.setFixedHeight(self.fixed_height)
+		self.setFixedHeight(self.init_height)
 
 		palette = self.palette()
 		color = QColor("#5c5c7d")

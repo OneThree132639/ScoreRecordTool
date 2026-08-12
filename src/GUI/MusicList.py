@@ -1,6 +1,5 @@
 import logging
 import numpy as np
-import os
 import pandas as pd
 
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
@@ -32,35 +31,42 @@ else:
 
 class BasicCard(QWidget): 
 
-	cover_size = 50
-	label_size = 60
 	my_layout_spacing = 5
 
 	@overload
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			cover: Literal[None], pixmap: Literal[None], parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			cover: np.ndarray, pixmap: Literal[None], parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			cover: QPixmap, pixmap: QPixmap, parent: Optional[QWidget]=None
 		) -> None: ...
 
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			cover: Optional[Union[np.ndarray, QPixmap]], 
 			pixmap: Optional[QPixmap], 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
+		self.small_height = small_height
+		self.large_height = large_height
+		self.icon_size = icon_size
+		self.label_size = label_size
+
 		self.music_id = int(music_id)
 		self.title = title
 		self.difficulty = difficulty
@@ -72,12 +78,12 @@ class BasicCard(QWidget):
 		self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
 		self.cover_label = QLabel(self)
-		self.cover_label.setFixedSize(self.cover_size, self.cover_size)
+		self.cover_label.setFixedSize(self.icon_size, self.icon_size)
 		self.cover_label.setScaledContents(True)
 		if self.cover is None: 
 			self.cover_label.setText("ジャケット画像がありません")
 			font = QFont()
-			font.setPointSize(15)
+			font.setPointSize(self.small_height)
 			self.cover_label.setFont(font)
 		elif isinstance(self.cover, np.ndarray): 
 			self.pixmap = self._np_to_pixmap(self.cover)
@@ -113,28 +119,36 @@ class NormalCard(BasicCard):
 
 	@overload
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
 			cover: Literal[None], pixmap: Literal[None], parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
 			cover: np.ndarray, pixmap: Literal[None], parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
 			cover: QPixmap, pixmap: QPixmap, parent: Optional[QWidget]=None
 		) -> None: ...
 
-	def __init__(self, music_id: int, title: str, difficulty: Difficulty, level: int, 
+	def __init__(self, 
+			small_height: int, large_height: int, icon_size: int, label_size: int, 
+			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			config: Dict[str, str], cover: Optional[Union[np.ndarray, QPixmap]], 
 			pixmap: Optional[QPixmap], 
 			parent: Optional[QWidget]=None
 		) -> None: 
-		super().__init__(music_id, title, difficulty, level, cover, pixmap, parent)
+		super().__init__(
+			small_height, large_height, icon_size, label_size, 
+			music_id, title, difficulty, level, cover, pixmap, parent
+		)
 		self.config = config
 
 		if difficulty == Difficulty.APPEND: 
@@ -142,7 +156,7 @@ class NormalCard(BasicCard):
 		else: 
 			self.level_label = OrdinaryLabel(level, False, self.label_size, difficulty, config, self)
 
-		self.title_label = MarqueeLabel(title, "nintendo_NTLG-DB_001", 15, False)
+		self.title_label = MarqueeLabel(title, "nintendo_NTLG-DB_001", self.small_height, False)
 		self.info_layout.addWidget(self.title_label)
 
 		self.my_layout.addWidget(self.level_label)
@@ -165,12 +179,16 @@ class NormalCard(BasicCard):
 
 class MusicCard(BasicCard): 
 
-	def __init__(self, music_id: int, title: str, composer: str, vocal: str, 
+	def __init__(self, 
+		small_height: int, large_height: int, icon_size: int, label_size: int, 
+		music_id: int, title: str, composer: str, vocal: str, 
 		difficulty: Difficulty, level: int, config: Dict[str, Any], 
 		cover: Optional[Union[np.ndarray, QPixmap]], pixmap: Optional[QPixmap], 
 		parent: Optional[QWidget]=None
 	) -> None: 
-		super().__init__(music_id, title, difficulty, level, cover, pixmap, parent)
+		super().__init__(small_height, large_height, icon_size, label_size, 
+			music_id, title, difficulty, level, cover, pixmap, parent
+		)
 		self.composer = composer
 		self.vocal = vocal
 		self.config = config
@@ -180,9 +198,9 @@ class MusicCard(BasicCard):
 		else: 
 			self.level_label = OrdinaryLabel(level, True, self.label_size, difficulty, config, self)
 
-		self.title_label = MarqueeLabel(title, "FOT-RodinNTLG Pro", 24, False)
-		self.composer_label = MarqueeLabel(composer, "nintendo_NTLG-DB_001", 15, False)
-		self.vocal_label = MarqueeLabel(vocal, "nintendo_NTLG-DB_001", 15, False)
+		self.title_label = MarqueeLabel(title, "FOT-RodinNTLG Pro", self.large_height, False)
+		self.composer_label = MarqueeLabel(composer, "nintendo_NTLG-DB_001", self.small_height, False)
+		self.vocal_label = MarqueeLabel(vocal, "nintendo_NTLG-DB_001", self.small_height, False)
 		self.info_layout.addWidget(self.title_label)
 		self.info_layout.addWidget(self.composer_label)
 		self.info_layout.addWidget(self.vocal_label)
@@ -228,27 +246,33 @@ class EmptyLabel(QLabel):
 
 class DisplayCard(QWidget): 
 
-	cover_size = 250
 	padding = 25
 	my_layout_spacing = 10
 	cover_text_spacing = 20
+	size_percentage = 0.35
 
-	def __init__(self, title: str, composer: str, vocal: str, 
+	def __init__(self, 
+			small_height: int, large_height: int, init_height: int, 
+			title: str, composer: str, vocal: str, 
 			pixmap: Optional[QPixmap], parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
+		self.small_height = small_height
+		self.large_height = large_height
+		self.icon_size = int(init_height * self.size_percentage)
+
 		self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Preferred)
-		self.setFixedWidth(self.cover_size + 2 * self.padding)
+		self.setFixedWidth(self.icon_size + 2 * self.padding)
 		self.my_layout = QVBoxLayout()
 		self.my_layout.setSpacing(self.my_layout_spacing)
 		self.setLayout(self.my_layout)
 
-		self.title_label = MarqueeLabel(title, "FOT-RodinNTLG Pro", 24, False)
-		self.composer_label = MarqueeLabel(composer, "nintendo_NTLG-DB_001", 15, False)
-		self.vocal_label = MarqueeLabel(vocal, "nintendo_NTLG-DB_001", 15, True)
+		self.title_label = MarqueeLabel(title, "FOT-RodinNTLG Pro", self.large_height, False)
+		self.composer_label = MarqueeLabel(composer, "nintendo_NTLG-DB_001", self.small_height, False)
+		self.vocal_label = MarqueeLabel(vocal, "nintendo_NTLG-DB_001", self.small_height, True)
 
 		self.cover_label = QLabel(self)
-		self.cover_label.setFixedSize(self.cover_size, self.cover_size)
+		self.cover_label.setFixedSize(self.icon_size, self.icon_size)
 		self.cover_label.setScaledContents(True)
 		if pixmap is None: 
 			self.cover_label.setText("ジャケット画像がありません")
@@ -650,9 +674,17 @@ class MusicList(QListWidget):
 class MusicListWidget(QStackedWidget): 
 
 	music_updated = pyqtSignal(int)
+	small_percentage = 0.025
+	large_percentage = 0.05
+	icon_percentage = 0.10
+	label_percentage = 0.10
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, init_height: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
+		self.small_height = int(init_height * self.small_percentage)
+		self.large_height = int(init_height * self.large_percentage)
+		self.icon_size = int(init_height * self.icon_percentage)
+		self.label_size = int(init_height * self.label_percentage)
 		self.empty_music_list = MusicList(self)
 		self.addWidget(self.empty_music_list)
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
@@ -730,6 +762,7 @@ class MusicListWidget(QStackedWidget):
 				scaled_pixmap = None if cached_data[7] is None else cached_data[7].copy()
 				pixmap = None if cached_data[8] is None else cached_data[8].copy()
 				return MusicCard(
+					self.small_height, self.large_height, self.icon_size, self.label_size, 
 					cached_data[0], cached_data[1], cached_data[2], cached_data[3], cached_data[4], 
 					cached_data[5], cached_data[6], scaled_pixmap, pixmap
 				)
@@ -739,7 +772,10 @@ class MusicListWidget(QStackedWidget):
 				composer = row["artistsName"]
 				vocal = self._selectVocal(music_id, vocal_table)
 				level = row["playLevel"]
-				card = MusicCard(music_id, title, composer, vocal, difficulty, level, config, cover, None)
+				card = MusicCard(
+					self.small_height, self.large_height, self.icon_size, self.label_size, 
+					music_id, title, composer, vocal, difficulty, level, config, cover, None
+				)
 				self.music_cache[difficulty][music_id] = card.getData()
 				return card
 		else: 
@@ -749,14 +785,19 @@ class MusicListWidget(QStackedWidget):
 				cached_data = self.normal_cache[difficulty][music_id]
 				scaled_pixmap = None if cached_data[5] is None else cached_data[5].copy()
 				pixmap = None if cached_data[6] is None else cached_data[6].copy()
-				return NormalCard(cached_data[0], cached_data[1], cached_data[2], 
+				return NormalCard(
+					self.small_height, self.large_height, self.icon_size, self.label_size, 
+					cached_data[0], cached_data[1], cached_data[2], 
 					cached_data[3], cached_data[4], scaled_pixmap, pixmap
 				)
 			else: 
 				title = row["title"]
 				cover = get_cover_func(int(music_id))
 				level = row["playLevel"]
-				card = NormalCard(music_id, title, difficulty, level, config, cover, None)
+				card = NormalCard(
+					self.small_height, self.large_height, self.icon_size, self.label_size, 
+					music_id, title, difficulty, level, config, cover, None
+				)
 				self.normal_cache[difficulty][music_id] = card.getData()
 				return card
 

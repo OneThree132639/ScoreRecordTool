@@ -125,13 +125,17 @@ class TextButton(GroupButton):
 
 	unchecked_color = "#FFFFFF"
 	checked_color = "#A1F4EB"
-	padding = 0
-	short_size = 14
-	long_size = 10
+	padding_percentage = 0.03
+	short_percentage = 0.20
+	long_percentage = 0.10
+	min_height_percentage = 0.7
 
 	def __init__(self, group: Union[Group, str], icon_size: int, text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(group, icon_size, parent)
 		self.my_text = text
+		self.min_height = int(icon_size * self.min_height_percentage)
+		self.short_size = int(icon_size * self.short_percentage)
+		self.long_size = int(icon_size * self.long_percentage)
 
 		self.setFixedWidth(self.icon_size)
 
@@ -139,11 +143,18 @@ class TextButton(GroupButton):
 		self.document.setDefaultTextOption(QTextOption(Qt.AlignmentFlag.AlignCenter))
 
 	def updateDocument(self) -> None: 
-		available_width = self.width() - 2 * self.padding
+		padding = int(self.icon_size * self.padding_percentage)
+		available_width = self.width() - 2 * padding
+
+		font_size = self.short_size if len(self.my_text) <= 3 else self.long_size
+		html_text = (
+			"<span style=\"font-size: {}px; font-family: FOT-RodinNTLG Pro; \">{}</span>"
+		).format(font_size, self.my_text)
+		self.document.setHtml(html_text)
 		self.document.setTextWidth(available_width)
-		self.document.setPlainText(self.my_text)
+
 		doc_height = self.document.size().height()
-		self.setFixedHeight(int(doc_height) + 2 * self.padding)
+		self.setFixedHeight(min(int(doc_height), self.min_height) + 2 * padding)
 		self.update()
 
 	def setText(self, text: str) -> None: 
@@ -172,7 +183,8 @@ class TextButton(GroupButton):
 		).format(color.name(), font_size, self.my_text)
 
 		self.document.setHtml(html_text)
-		rect = self.rect().adjusted(self.padding, self.padding, -self.padding, -self.padding)
+		padding = int(self.icon_size * self.padding_percentage)
+		rect = self.rect().adjusted(padding, padding, -padding, -padding)
 		self.document.setTextWidth(rect.width())
 		painter.translate(rect.topLeft())
 		self.document.drawContents(painter)
@@ -183,7 +195,8 @@ class GroupButtonSet(QListWidget):
 
 	btn_spacing = 20
 	num_default_btn = 8
-	padding = 20
+	padding_percentage = 0.05
+	unit_percentage = 0.7
 
 	def __init__(self, 
 			btn_size: int, group_masks: np.ndarray, 
@@ -193,6 +206,8 @@ class GroupButtonSet(QListWidget):
 		) -> None: 
 		super().__init__(parent)
 		self.btn_size = btn_size
+		padding = int(self.btn_size * self.padding_percentage)
+		unit_size = int(self.btn_size * self.unit_percentage)
 		self.btn_config = btn_config
 		self.group_masks = group_masks
 
@@ -201,15 +216,15 @@ class GroupButtonSet(QListWidget):
 		self.setUniformItemSizes(False)
 		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
-		self.setFixedWidth(self.btn_size + 2 * self.padding)
+		self.setFixedWidth(self.btn_size + 2 * padding)
 
 		self.all_button = TextButton(Group.ALL, btn_size, "すべて", self)
-		self.vs_button = UnitButton(Group.VS, btn_size, group_masks[Group.VS.value - 1], btn_config["vs"]["color"], self)
-		self.ln_button = UnitButton(Group.LN, btn_size, group_masks[Group.LN.value - 1], btn_config["ln"]["color"], self)
-		self.mmj_button = UnitButton(Group.MMJ, btn_size, group_masks[Group.MMJ.value - 1], btn_config["mmj"]["color"], self)
-		self.vbs_button = UnitButton(Group.VBS, btn_size, group_masks[Group.VBS.value - 1], btn_config["vbs"]["color"], self)
-		self.ws_button = UnitButton(Group.WS, btn_size, group_masks[Group.WS.value - 1], btn_config["ws"]["color"], self)
-		self.ng_button = UnitButton(Group.NG, btn_size, group_masks[Group.NG.value - 1], btn_config["ng"]["color"], self)
+		self.vs_button = UnitButton(Group.VS, unit_size, group_masks[Group.VS.value - 1], btn_config["vs"]["color"], self)
+		self.ln_button = UnitButton(Group.LN, unit_size, group_masks[Group.LN.value - 1], btn_config["ln"]["color"], self)
+		self.mmj_button = UnitButton(Group.MMJ, unit_size, group_masks[Group.MMJ.value - 1], btn_config["mmj"]["color"], self)
+		self.vbs_button = UnitButton(Group.VBS, unit_size, group_masks[Group.VBS.value - 1], btn_config["vbs"]["color"], self)
+		self.ws_button = UnitButton(Group.WS, unit_size, group_masks[Group.WS.value - 1], btn_config["ws"]["color"], self)
+		self.ng_button = UnitButton(Group.NG, unit_size, group_masks[Group.NG.value - 1], btn_config["ng"]["color"], self)
 		self.other_button = TextButton(Group.OTHER, btn_size, "その他", self)
 
 		self.button_group = QButtonGroup(self)

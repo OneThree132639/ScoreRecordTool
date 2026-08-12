@@ -3,13 +3,12 @@ import json
 import os
 import pandas as pd
 import sys
-import time
 import zipfile
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	pyqtSignal, QDir, QTimer
+	pyqtSignal, QDir, QRect, QTimer
 )
 from PyQt5.QtWidgets import (
 	QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
@@ -48,17 +47,30 @@ else:
 
 class MainWindow(QMainWindow): 
 
-	filter_button_size = 30
-	group_size = 50
+	width_percentage = 0.7
+	height_precentage = 0.8
+
+	group_percentage = 0.1
+	search_box_height_percentage = 0.025
+	music_list_widget_height_percentage = 0.93
+	filter_size_percentage = 0.05
+	sort_type_box_height_percentage = 0.025
+	diff_button_size_percentage = 0.07
+	random_height_percentage = 0.07
 	update_done = pyqtSignal()
 
-	def __init__(self, project_base_dir: str, 
+	def __init__(self, available_geometry: QRect, 
+			project_base_dir: str, 
 			data_dir: str, buildin_dir: str, 
 			resource_dir: str, parent: Optional[QWidget]=None
 		): 
 		super().__init__(parent)
 		self.setWindowTitle("Score Record Tool")
-		self.resize(1000, 600)
+		self.resize(
+			int(available_geometry.width() * self.width_percentage), 
+			int(available_geometry.height() * self.height_precentage)
+		)
+		centerDialog(self, parent)
 
 		self.project_base_dir = project_base_dir
 		self.buildin_dir = buildin_dir
@@ -82,32 +94,41 @@ class MainWindow(QMainWindow):
 		self.my_layout = QHBoxLayout(main_widget)
 		self.setCentralWidget(main_widget)
 
-		self.group_button_set = GroupButtonSet(self.group_size, 
+		self.group_button_set = GroupButtonSet(int(self.group_percentage * self.width()), 
 			self.data_manager.logo_array, self.data_manager.config["group"], 
 			checked_group=self._init_config.get("group", 0), parent=self
 		)
 		self.left_layout.addWidget(self.group_button_set)
 
-		self.search_box = SearchBox(self._init_config.get("search", ""), self)
-		self.music_list_widget = MusicListWidget(self)
+		self.search_box = SearchBox(
+			int(self.search_box_height_percentage * self.height()), 
+			self._init_config.get("search", ""), self
+		)
+		self.music_list_widget = MusicListWidget(int(self.height() * self.music_list_widget_height_percentage), self)
 
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
 
-		self.filter_button = FilterButton(self._init_config.get("filter", {}), self.filter_button_size, self)
-		self.sort_type_box = SortTypeBox(self._init_config.get("sort_type", ""), self)
+		self.filter_button = FilterButton(self._init_config.get("filter", {}), int(self.height() * self.filter_size_percentage), self)
+		self.sort_type_box = SortTypeBox(int(self.height() * self.sort_type_box_height_percentage), self._init_config.get("sort_type", ""), self)
 		self.rightup_layout.addWidget(self.filter_button)
 		self.rightup_layout.addWidget(self.sort_type_box)
 
-		self.display_card = DisplayCard("", "", "", None, self)
+		self.display_card = DisplayCard(
+			self.music_list_widget.small_height, self.music_list_widget.large_height, self.height(),
+			"", "", "", None, self
+		)
 		self.diff_button_set = DifficultyButtonSet(
-			50, (None, None, None, None, None, None), 
+			int(self.height() * self.diff_button_size_percentage), (None, None, None, None, None, None), 
 			self.data_manager.config["button"], self
 		)
 		self.rightmiddle_layout.addWidget(self.display_card)
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
-		self.random_widget = RandomWidget(self.data_manager.loadBinaryArray, self._init_config.get("random", {}), self)
+		self.random_widget = RandomWidget(
+			int(self.height() * self.random_height_percentage), 
+			self.data_manager.loadBinaryArray, self._init_config.get("random", {}), self
+		)
 		self.rightdown_layout.addWidget(self.random_widget)
 		
 		self.right_layout.addLayout(self.rightup_layout)
@@ -129,7 +150,7 @@ class MainWindow(QMainWindow):
 
 	def _chooseResourceFile(self) -> bool: 
 		msg_box = QMessageBox(self)
-		msg_box.setIcon(QMessageBox.Question)
+		msg_box.setIcon(QMessageBox.Icon.Question)
 		msg_box.setWindowTitle("Resource File Issue")
 		msg_box.setText((
 			"Error occurred while loading resource file (not exist or errupted). \n"

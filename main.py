@@ -72,6 +72,9 @@ if __name__ == "__main__":
 	)
 
 	app = QApplication(sys.argv)
+	screen = app.primaryScreen()
+	assert screen is not None
+	available_geometry = screen.availableGeometry()
 	font = QFont()
 	font.setFamily("nintendo_NTLG-DB_001")
 	font.setPointSize(12)
@@ -79,6 +82,7 @@ if __name__ == "__main__":
 	app.setFont(font)
 	load_fonts(font_dir)
 	window = MainWindow(
+		available_geometry = available_geometry, 
 		project_base_dir = project_base_dir, 
 		data_dir = data_dir, 
 		buildin_dir = buildin_dir, 
