@@ -19,12 +19,13 @@ if __package__ is None or __package__ == "":
 	from DataManager.DataManager import DataManager
 	from GUI.Basics.Enums.Difficulty import Difficulty
 	from GUI.Basics.Enums.Group import Group
+	from GUI.Basics.Enums.SortType import SortType
 	from GUI.Dialog import centerDialog
 	from GUI.Dialog import MessageObject, ProgressObject, UpdateController
 	from GUI.DifficultyButton import DifficultyButtonSet
 	from GUI.FilterDialog import FilterButton
 	from GUI.GroupButton import GroupButtonSet
-	from GUI.MusicList import DisplayCard, MusicList
+	from GUI.MusicList import DisplayCard, MusicList, MusicListWidget
 	from GUI.RandomDialog import RandomWidget
 	from GUI.SearchBox import SearchBox
 	from GUI.SortTypeBox import SortTypeBox
@@ -32,12 +33,13 @@ else:
 	from .DataManager.DataManager import DataManager
 	from .GUI.Basics.Enums.Difficulty import Difficulty
 	from .GUI.Basics.Enums.Group import Group
+	from .GUI.Basics.Enums.SortType import SortType
 	from .GUI.Dialog import centerDialog
 	from .GUI.Dialog import MessageObject, ProgressObject, UpdateController
 	from .GUI.DifficultyButton import DifficultyButtonSet
 	from .GUI.FilterDialog import FilterButton
 	from .GUI.GroupButton import GroupButtonSet
-	from .GUI.MusicList import DisplayCard, MusicList
+	from .GUI.MusicList import DisplayCard, MusicList, MusicListWidget
 	from .GUI.RandomDialog import RandomWidget
 	from .GUI.SearchBox import SearchBox
 	from .GUI.SortTypeBox import SortTypeBox
@@ -76,12 +78,12 @@ class MainWindow(QMainWindow):
 		self.buildin_dir = buildin_dir
 		self.data_dir = data_dir
 		self.resource_dir = resource_dir
+		self.config = {}
+		self._loadConfig()
 		self.data_manager = DataManager(
 			project_base_dir, data_dir, buildin_dir, resource_dir, 
 			self._chooseResourceFile
 		)
-		self.config = {}
-		self._loadConfig()
 
 		main_widget = QWidget(self)
 		self.left_layout = QVBoxLayout()
@@ -100,9 +102,10 @@ class MainWindow(QMainWindow):
 		self.left_layout.addWidget(self.group_button_set)
 
 		self.search_box = SearchBox(self.config.get("search", ""), self)
-		self.music_list = MusicList(self)
+		self.music_list_widget = MusicListWidget(self)
+
 		self.middle_layout.addWidget(self.search_box)
-		self.middle_layout.addWidget(self.music_list)
+		self.middle_layout.addWidget(self.music_list_widget)
 
 		self.filter_button = FilterButton(self.config.get("filter", {}), self.filter_button_size, self)
 		self.sort_type_box = SortTypeBox(self.config.get("sort_type", ""), self)
@@ -131,7 +134,7 @@ class MainWindow(QMainWindow):
 
 		self.group_button_set.button_group.buttonClicked.connect(self.refresh)
 		self.search_box.textChanged.connect(self.refresh)
-		self.music_list.music_selected.connect(self.refreshCurrentIndex)
+		self.music_list_widget.music_updated.connect(self.refreshCurrentIndex)
 		self.filter_button.filter_option_changed.connect(self.refresh)
 		self.sort_type_box.currentIndexChanged.connect(self.refresh)
 		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
@@ -314,18 +317,18 @@ class MainWindow(QMainWindow):
 			self.cache.music_id = self.cache.music_list.iloc[index]["id_musics"]
 			difficulties = self._getMusicLevels(self.cache.music_id)
 		self.diff_button_set.setLevels(difficulties, difficulty) # type: ignore
-		self.music_list.updateDisplayCard(difficulty, self.display_card)
+		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
 		self._saveConfig()
 
 	def refresh(self) -> None: 
+		sort_type = self.sort_type_box.getCurrentSortType()
 		group = self.group_button_set.getCurrentGroup()
 		difficulty = self.diff_button_set.getDifficulty()
 		filter_option = self.filter_button.filter_dialog.getCurrentFilterOptions()
 		search_content = self.search_box.text()
-		music_id = self.music_list.getCurrentMusicId()
-		current_index = self.music_list._getCurrentIndex()
+		music_id = self.music_list_widget.getCurrentMusicId()
 
 		music_list = self._getGroupDifficultyMusicList(group, difficulty)
 		music_list: pd.DataFrame = self._filterByFilterOptions(music_list, filter_option)
@@ -354,14 +357,16 @@ class MainWindow(QMainWindow):
 		self.cache.difficulty = difficulty
 
 		difficulties = self._getMusicLevels(music_id)
+		vocal_list = self.data_manager.vocal_table
+		assert vocal_list is not None
 
-		self.music_list.refreshData(
-			music_list, self.data_manager.vocal_table, current_index, 
-			difficulty, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
-			self.data_manager.getCoverArray
+		self.music_list_widget.switchList(
+			sort_type, group, difficulty, search_content, 
+			music_list, vocal_list, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
+			self.data_manager.getCoverArray, music_id
 		)
 		self.diff_button_set.setLevels(difficulties, difficulty) # type: ignore
-		self.music_list.updateDisplayCard(difficulty, self.display_card)
+		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
 
@@ -393,8 +398,7 @@ class MainWindow(QMainWindow):
 		self.cache.difficulty = selected_difficulty
 		self.cache.music_id = selected_music_id
 		self.refresh()
-		index = self.cache.music_list.set_index("id_musics").index.get_loc(selected_music_id)
-		self.music_list.randomSmoothScrolling(index)
+		self.music_list_widget.randomSmoothScrolling(selected_music_id)
 
 		self._saveConfig()
 
@@ -402,7 +406,7 @@ class MainWindow(QMainWindow):
 		self.config["difficulty"] = self.diff_button_set.getDifficulty().value
 		self.config["filter"] = self.filter_button.getCurrentFilterOptions()
 		self.config["group"] = self.group_button_set.getCurrentGroupConfig()
-		self.config["music_id"] = self.music_list.getCurrentMusicId()
+		self.config["music_id"] = self.music_list_widget.getCurrentMusicId()
 		self.config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
 		self.config["search"] = self.search_box.text()
 		self.config["sort_type"] = self.sort_type_box.currentText()

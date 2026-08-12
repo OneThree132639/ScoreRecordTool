@@ -1,5 +1,6 @@
 import logging
 import numpy as np
+import os
 import pandas as pd
 
 from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
@@ -18,9 +19,13 @@ from PyQt5.QtWidgets import (
 
 if __package__ is None or __package__ == "": 
 	from Basics.Enums.Difficulty import Difficulty
+	from Basics.Enums.Group import Group
+	from Basics.Enums.SortType import SortType
 	from Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 else: 
 	from .Basics.Enums.Difficulty import Difficulty
+	from .Basics.Enums.Group import Group
+	from .Basics.Enums.SortType import SortType
 	from .Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 
 class BasicCard(QWidget): 
@@ -54,7 +59,7 @@ class BasicCard(QWidget):
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
-		self.music_id = music_id
+		self.music_id = int(music_id)
 		self.title = title
 		self.difficulty = difficulty
 		self.level = level
@@ -333,21 +338,15 @@ class MusicList(QListWidget):
 		self.setFlow(QListWidget.Flow.TopToBottom)
 		self.setSelectionMode(QListWidget.SelectionMode.NoSelection)
 		self.setUniformItemSizes(False)
-		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
 
+		self.music_list = pd.DataFrame()
 		self._current_index = 0
 		self._num_line = 0
 		self._num_pad = 0
 		self.normal_height: Optional[int] = None
 		self.music_height: Optional[int] = None
-
-		self.normal_cache: Dict[Difficulty, 
-			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
-		] = {}
-		self.music_cache: Dict[Difficulty, 
-			Dict[int, Tuple[int, str, str, str, Difficulty, int, Dict[str, Any], Optional[QPixmap], Optional[QPixmap]]]
-		] = {}
 
 		self._program_update = False
 		self._is_scrolling = False
@@ -391,85 +390,21 @@ class MusicList(QListWidget):
 
 		return viewport_width - scroll_bar_width - self.viewportMargins().left() - self.viewportMargins().right()
 
-	def _selectVocal(self, music_id: int, vocal_table: pd.DataFrame) -> str: 
-		vocal_rows = vocal_table[vocal_table["musicId"] == music_id]
-		sekai_ver = vocal_rows[vocal_rows["caption"] == "セカイver."]
-		if not sekai_ver.empty: 
-			return sekai_ver.iloc[0]["vocal"]
-		vs_ver = vocal_rows[vocal_rows["caption"] == "バーチャル・シンガーver."]
-		if not vs_ver.empty: 
-			return vs_ver.iloc[0]["vocal"]
-		inst_ver = vocal_rows[vocal_rows["caption"] == "Inst.ver."]
-		if not inst_ver.empty:
-			return inst_ver.iloc[0]["vocal"]
-		return vocal_rows.iloc[0]["vocal"] if not vocal_rows.empty else "Unknown"
-
-	def _createCard(self, 
-			row: pd.Series, vocal_table: pd.DataFrame, is_music_card: bool, 
-			difficulty: Difficulty, config: Dict[str, Any], 
-			get_cover_func: Callable[[int], Optional[np.ndarray]]
-		) -> QWidget: 
-		music_id = row["id_musics"]
-		if is_music_card: 
-			if difficulty not in self.music_cache: 
-				self.music_cache[difficulty] = {}
-			if music_id in self.music_cache[difficulty]: 
-				cached_data = self.music_cache[difficulty][music_id]
-				scaled_pixmap = None if cached_data[7] is None else cached_data[7].copy()
-				pixmap = None if cached_data[8] is None else cached_data[8].copy()
-				return MusicCard(
-					cached_data[0], cached_data[1], cached_data[2], cached_data[3], cached_data[4], 
-					cached_data[5], cached_data[6], scaled_pixmap, pixmap
-				)
-			else: 
-				title = row["title"]
-				cover = get_cover_func(int(music_id))
-				composer = row["artistsName"]
-				vocal = self._selectVocal(music_id, vocal_table)
-				level = row["playLevel"]
-				card = MusicCard(music_id, title, composer, vocal, difficulty, level, config, cover, None)
-				self.music_cache[difficulty][music_id] = card.getData()
-				return card
-		else: 
-			if difficulty not in self.normal_cache: 
-				self.normal_cache[difficulty] = {}
-			if music_id in self.normal_cache[difficulty]: 
-				cached_data = self.normal_cache[difficulty][music_id]
-				scaled_pixmap = None if cached_data[5] is None else cached_data[5].copy()
-				pixmap = None if cached_data[6] is None else cached_data[6].copy()
-				return NormalCard(cached_data[0], cached_data[1], cached_data[2], 
-					cached_data[3], cached_data[4], scaled_pixmap, pixmap
-				)
-			else: 
-				title = row["title"]
-				cover = get_cover_func(int(music_id))
-				level = row["playLevel"]
-				card = NormalCard(music_id, title, difficulty, level, config, cover, None)
-				self.normal_cache[difficulty][music_id] = card.getData()
-				return card
-
-	def _createContainer(self, row: pd.Series, vocal_table: pd.DataFrame, 
-			difficulty: Difficulty, config: Dict[str, Any], 
-			get_cover_func: Callable[[int], Optional[np.ndarray]]
-		) -> QStackedWidget: 
-		container = QStackedWidget()
-		container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-		normal_card = self._createCard(row, vocal_table, is_music_card=False, difficulty=difficulty, config=config, get_cover_func=get_cover_func)
-		music_card = self._createCard(row, vocal_table, is_music_card=True, difficulty=difficulty, config=config, get_cover_func=get_cover_func)
-		if self.normal_height is None: 
-			self.normal_height = normal_card.sizeHint().height()
-		if self.music_height is None: 
-			self.music_height = music_card.sizeHint().height()
-		container.addWidget(normal_card)
-		container.addWidget(music_card)
-		return container
-
 	def _addContainer(self, row: pd.Series, vocal_table: pd.DataFrame, 
 			difficulty: Difficulty, config: Dict[str, Any], 
-			get_cover_func: Callable[[int], Optional[np.ndarray]]
+			get_cover_func: Callable[[int], Optional[np.ndarray]], 
+			create_container: Callable[
+				[
+					pd.Series, pd.DataFrame, Difficulty, Dict[str, Any], Callable[[int], 
+					Optional[np.ndarray]], Optional[int], Optional[int]
+				], 
+				Tuple[QStackedWidget, int, int]
+			]
 		) -> None: 
 		self._program_update = True
-		container = self._createContainer(row, vocal_table, difficulty, config, get_cover_func)
+		container, self.normal_height, self.music_height = create_container(
+			row, vocal_table, difficulty, config, get_cover_func, self.normal_height, self.music_height
+		)
 		item = QListWidgetItem()
 		item.setSizeHint(QSize(0, container.sizeHint().height()))
 		self.addItem(item)
@@ -478,10 +413,19 @@ class MusicList(QListWidget):
 
 	def _insertContainer(self, row: pd.Series, vocal_table: pd.DataFrame, 
 			difficulty: Difficulty, config: Dict[str, Any], 
-			index: int, get_cover_func: Callable[[int], Optional[np.ndarray]]
+			index: int, get_cover_func: Callable[[int], Optional[np.ndarray]], 
+			create_container: Callable[
+				[
+					pd.Series, pd.DataFrame, Difficulty, Dict[str, Any], Callable[[int], 
+					Optional[np.ndarray]], Optional[int], Optional[int]
+				], 
+				Tuple[QStackedWidget, int, int]
+			]
 		) -> None: 
 		self._program_update = True
-		container = self._createContainer(row, vocal_table, difficulty, config, get_cover_func)
+		container, self.normal_height, self.music_height = create_container(
+			row, vocal_table, difficulty, config, get_cover_func, self.normal_height, self.music_height
+		)
 		item = QListWidgetItem()
 		item.setSizeHint(QSize(0, container.sizeHint().height()))
 		self.insertItem(index, item)
@@ -490,39 +434,48 @@ class MusicList(QListWidget):
 
 	def refreshData(self, 
 			music_table: Optional[pd.DataFrame], 
-			vocal_table: Optional[pd.DataFrame], current_index: int, 
+			vocal_table: Optional[pd.DataFrame], 
 			difficulty: Difficulty, config: Dict[str, Any], 
-			get_cover_func: Callable[[int], Optional[np.ndarray]]
+			get_cover_func: Callable[[int], Optional[np.ndarray]], 
+			create_container: Callable[
+				[
+					pd.Series, pd.DataFrame, Difficulty, Dict[str, Any], Callable[[int], 
+					Optional[np.ndarray]], Optional[int], Optional[int]
+				], 
+				Tuple[QStackedWidget, int, int]
+			]
 		) -> None: 
-		self.clear()
-		self._current_index = current_index
 		if music_table is None or vocal_table is None: 
 			logging.warning("Music table or vocal table is None, cannot refresh data.")
-			return
-		if len(music_table) == 0: 
-			self.empty_label.show()
 			return
 		self.empty_label.hide()
 		self.setUpdatesEnabled(False)
 		self._num_line = len(music_table)
 		self._addContainer(music_table.iloc[self._num_line - 1], 
-			vocal_table, difficulty, config, get_cover_func=get_cover_func
+			vocal_table, difficulty, config, get_cover_func=get_cover_func, 
+			create_container=create_container
 		)
 		viewport_height = self._getViewportHeight()
 		assert self.normal_height is not None
-		self._num_pad = int((viewport_height - self.normal_height) / (2 * self.normal_height)) + 2
+		self._num_pad = int((viewport_height - self.normal_height) / (2 * self.normal_height)) + 3
 		for i in range(self._num_pad - 1): 
 			self._insertContainer(
 				music_table.iloc[(self._num_line - 2 - i) % self._num_line], 
-				vocal_table, difficulty, config, index=0, get_cover_func=get_cover_func
+				vocal_table, difficulty, config, index=0, get_cover_func=get_cover_func, 
+				create_container=create_container
 			)
 		for _, (_, row) in enumerate(music_table.iterrows()): 
-			self._addContainer(row, vocal_table, difficulty, config, get_cover_func=get_cover_func)
+			self._addContainer(
+				row, vocal_table, difficulty, config, get_cover_func=get_cover_func, 
+				create_container=create_container
+			)
 		for i in range(self._num_pad): 
 			self._addContainer(
 				music_table.iloc[i % self._num_line], 
-				vocal_table, difficulty, config, get_cover_func=get_cover_func
+				vocal_table, difficulty, config, get_cover_func=get_cover_func, 
+				create_container=create_container
 			)
+		self.music_list = music_table.reset_index(drop=True)
 		self._updateAllContainerWidths()
 		self.setUpdatesEnabled(True)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
@@ -554,7 +507,6 @@ class MusicList(QListWidget):
 				music_card: MusicCard = container.widget(1)
 				assert music_card is not None
 				music_card.pause()
-
 
 		self.setUpdatesEnabled(True)
 		viewport = self.viewport()
@@ -663,17 +615,21 @@ class MusicList(QListWidget):
 		assert viewport is not None
 		viewport.update()
 
-	def updateDisplayCard(self, difficulty: Difficulty, card: DisplayCard) -> None: 
-		music_id = self.getCurrentMusicId()
-		if music_id == 0: 
-			card.updateData("", "", "", None)
-			return
-		data = self.music_cache[difficulty][music_id]
-		pixmap = None if data[8] is None else data[8].copy()
-		card.updateData(data[1], data[2], data[3], pixmap)
+	def _fromMusicIdToIndex(self, music_id: int) -> int: 
+		music_list_reset: pd.DataFrame = self.music_list.reset_index()
+		mask = (music_list_reset["id_musics"] == music_id)
+		if mask.any(): 
+			filtered = music_list_reset[mask]
+			logging.debug("original DataFrame:\n%s", music_list_reset.head(10))
+			logging.debug("Filtered DataFrame:\n%s", filtered)
+			index = music_list_reset.loc[mask, "index"].iloc[0]
+		else: 
+			index = 0
+		return index
 
-	def randomSmoothScrolling(self, target_index: int, laps: int=1) -> None: 
+	def randomSmoothScrolling(self, music_id: int, laps: int=1) -> None: 
 		assert self.normal_height is not None
+		target_index = self._fromMusicIdToIndex(music_id)
 		target_value = self._getTargetScrollValue(target_index) + laps * self.normal_height * self._num_line
 		current_value = self._getCurrentValue()
 		while target_value < current_value: 
@@ -683,3 +639,177 @@ class MusicList(QListWidget):
 
 	def _onAnimationValueChanged(self, value: int) -> None: 
 		self._setVerticalScrollBarValue(self._getMiddleValue(value), False)
+
+	def setMusicId(self, music_id: int) -> None: 
+		self._current_index = self._fromMusicIdToIndex(music_id)
+		self._updateAllWidgets(is_special=True, special_index=self._current_index + self._num_pad)
+		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
+class MusicListWidget(QStackedWidget): 
+
+	music_updated = pyqtSignal(int)
+
+	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+		super().__init__(parent)
+		self.empty_music_list = MusicList(self)
+		self.addWidget(self.empty_music_list)
+		self.map_dict: Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]] = {}
+
+		self.normal_cache: Dict[Difficulty, 
+			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
+		] = {}
+		self.music_cache: Dict[Difficulty, 
+			Dict[int, Tuple[int, str, str, str, Difficulty, int, Dict[str, Any], Optional[QPixmap], Optional[QPixmap]]]
+		] = {}
+
+	def _getMusicListIndex(self, sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str) -> int: 
+		if sort_type not in self.map_dict: 
+			self.map_dict[sort_type] = {}
+		if group not in self.map_dict[sort_type]: 
+			self.map_dict[sort_type][group] = {}
+		if difficulty not in self.map_dict[sort_type][group]: 
+			self.map_dict[sort_type][group][difficulty] = {}
+		return self.map_dict[sort_type][group][difficulty].get(search_content, -1)
+
+	def _setMusicListIndex(self, 
+			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, index: int
+		) -> None: 
+		if sort_type not in self.map_dict: 
+			self.map_dict[sort_type] = {}
+		if group not in self.map_dict[sort_type]: 
+			self.map_dict[sort_type][group] = {}
+		if difficulty not in self.map_dict[sort_type][group]: 
+			self.map_dict[sort_type][group][difficulty] = {}
+		self.map_dict[sort_type][group][difficulty][search_content] = index
+
+	def getCurrentMusicId(self) -> int: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is None: 
+			return 0
+		return current_list.getCurrentMusicId()
+
+	def setCurrentMusicId(self, music_id: int) -> None: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is not None: 
+			current_list.setMusicId(music_id)
+
+	def _selectVocal(self, music_id: int, vocal_table: pd.DataFrame) -> str: 
+		vocal_rows: pd.DataFrame = vocal_table[vocal_table["musicId"] == music_id]
+		sekai_ver: pd.DataFrame = vocal_rows[vocal_rows["caption"] == "セカイver."]
+		if not sekai_ver.empty: 
+			return sekai_ver.iloc[0]["vocal"]
+		vs_ver: pd.DataFrame = vocal_rows[vocal_rows["caption"] == "バーチャル・シンガーver."]
+		if not vs_ver.empty: 
+			return vs_ver.iloc[0]["vocal"]
+		inst_ver: pd.DataFrame = vocal_rows[vocal_rows["caption"] == "Inst.ver."]
+		if not inst_ver.empty:
+			return inst_ver.iloc[0]["vocal"]
+		return vocal_rows.iloc[0]["vocal"] if not vocal_rows.empty else "Unknown"
+
+	def _createCard(self, 
+			row: pd.Series, vocal_table: pd.DataFrame, is_music_card: bool, 
+			difficulty: Difficulty, config: Dict[str, Any], 
+			get_cover_func: Callable[[int], Optional[np.ndarray]]
+		) -> QWidget: 
+		music_id = row["id_musics"]
+		if is_music_card: 
+			if difficulty not in self.music_cache: 
+				self.music_cache[difficulty] = {}
+			if music_id in self.music_cache[difficulty]: 
+				cached_data = self.music_cache[difficulty][music_id]
+				scaled_pixmap = None if cached_data[7] is None else cached_data[7].copy()
+				pixmap = None if cached_data[8] is None else cached_data[8].copy()
+				return MusicCard(
+					cached_data[0], cached_data[1], cached_data[2], cached_data[3], cached_data[4], 
+					cached_data[5], cached_data[6], scaled_pixmap, pixmap
+				)
+			else: 
+				title = row["title"]
+				cover = get_cover_func(int(music_id))
+				composer = row["artistsName"]
+				vocal = self._selectVocal(music_id, vocal_table)
+				level = row["playLevel"]
+				card = MusicCard(music_id, title, composer, vocal, difficulty, level, config, cover, None)
+				self.music_cache[difficulty][music_id] = card.getData()
+				return card
+		else: 
+			if difficulty not in self.normal_cache: 
+				self.normal_cache[difficulty] = {}
+			if music_id in self.normal_cache[difficulty]: 
+				cached_data = self.normal_cache[difficulty][music_id]
+				scaled_pixmap = None if cached_data[5] is None else cached_data[5].copy()
+				pixmap = None if cached_data[6] is None else cached_data[6].copy()
+				return NormalCard(cached_data[0], cached_data[1], cached_data[2], 
+					cached_data[3], cached_data[4], scaled_pixmap, pixmap
+				)
+			else: 
+				title = row["title"]
+				cover = get_cover_func(int(music_id))
+				level = row["playLevel"]
+				card = NormalCard(music_id, title, difficulty, level, config, cover, None)
+				self.normal_cache[difficulty][music_id] = card.getData()
+				return card
+
+	def _createContainer(self, row: pd.Series, vocal_table: pd.DataFrame, 
+			difficulty: Difficulty, config: Dict[str, Any], 
+			get_cover_func: Callable[[int], Optional[np.ndarray]], 
+			normal_height: Optional[int]=None, music_height: Optional[int]=None
+		) -> Tuple[QStackedWidget, int, int]: 
+		container = QStackedWidget()
+		container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+		normal_card = self._createCard(
+			row, vocal_table, is_music_card=False, difficulty=difficulty, config=config, get_cover_func=get_cover_func
+		)
+		music_card = self._createCard(
+			row, vocal_table, is_music_card=True, difficulty=difficulty, config=config, get_cover_func=get_cover_func
+		)
+		if normal_height is None: 
+			normal_height = normal_card.sizeHint().height()
+		if music_height is None: 
+			music_height = music_card.sizeHint().height()
+		container.addWidget(normal_card)
+		container.addWidget(music_card)
+		return container, normal_height, music_height
+
+	def switchList(
+		self, sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
+		music_list: pd.DataFrame, vocal_list: pd.DataFrame, config: Dict[str, Any], 
+		get_cover_func: Callable[[int], Optional[np.ndarray]], music_id: int = 0
+	) -> None: 
+		if music_id == 0: 
+			music_id = self.getCurrentMusicId()
+		index = self._getMusicListIndex(sort_type, group, difficulty, search_content)
+		if index != -1: 
+			self.setCurrentIndex(index)
+			self.setCurrentMusicId(music_id)
+			return
+
+		if len(music_list) == 0: 
+			self.setCurrentIndex(0)
+			return
+		
+		new_music_list = MusicList(self)
+		new_music_list.refreshData(
+			music_list, vocal_list, difficulty, config,
+			get_cover_func=get_cover_func, 
+			create_container=self._createContainer
+		)
+		new_music_list.music_selected.connect(self.music_updated.emit)
+
+		self._setMusicListIndex(sort_type, group, difficulty, search_content, self.count())
+		self.addWidget(new_music_list)
+		self.setCurrentIndex(self.count() - 1)
+		self.setCurrentMusicId(music_id)
+
+	def updateDisplayCard(self, difficulty: Difficulty, card: DisplayCard) -> None: 
+		music_id = self.getCurrentMusicId()
+		if music_id == 0: 
+			card.updateData("", "", "", None)
+			return
+		data = self.music_cache[difficulty][music_id]
+		pixmap = None if data[8] is None else data[8].copy()
+		card.updateData(data[1], data[2], data[3], pixmap)
+
+	def randomSmoothScrolling(self, music_id: int) -> None: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is not None: 
+			current_list.randomSmoothScrolling(music_id)

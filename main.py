@@ -49,7 +49,7 @@ if __name__ == "__main__":
 	project_name = "ScoreRecordTool"
 	version = "0.0.1"
 	author = "OneThree"
-	is_debug = False # False when commited
+	is_debug = True # False when commited
 
 	project_base_dir = get_project_base_dir(project_name, is_debug)  # project data directory
 	source_dir = get_resource_path()                                 # builtin directory
@@ -63,7 +63,7 @@ if __name__ == "__main__":
 	os.makedirs(log_dir, exist_ok=True)
 
 	logging.basicConfig(
-		level=logging.INFO, 
+		level=logging.DEBUG, # INFO when commited
 		format="%(asctime)s [%(levelname)s] %(message)s", 
 		handlers=[
 			logging.FileHandler(os.path.join(log_dir, "app.log"), mode="w"), 

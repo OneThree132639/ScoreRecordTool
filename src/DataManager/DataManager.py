@@ -294,7 +294,7 @@ class DataManager:
 		table["artistsPronunciationKatakana"] = table.apply(
 			lambda row: apply_func(row, "artistsPronunciation", self._hiraganaToKatakana), axis=1
 		)
-		logging.debug("table columns: {}".format(table.columns))
+		# logging.debug("table columns: {}".format(table.columns))
 		table.drop(columns=[
 			"releaseConditionId_musics", "categories", "dancerCount", "selfDancerPosition", "assetbundleName", 
 			"liveTalkBackgroundAssetbundleName", "releasedAt", "liveStageId", "fillerSec", "isNewlyWrittenMusic", 
