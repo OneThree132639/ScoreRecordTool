@@ -12,8 +12,10 @@ from PyQt5.QtWidgets import (
 )
 
 if __package__ is None or __package__ == "": 
+	from Basics.Enums.FilterOptions import SongType
 	from Basics.BasicClass import GeneralClickButton, OptionButtonSetWidget
 else: 
+	from .Basics.Enums.FilterOptions import SongType
 	from .Basics.BasicClass import GeneralClickButton, OptionButtonSetWidget
 
 class FilterButton(QPushButton): 
@@ -23,7 +25,7 @@ class FilterButton(QPushButton):
 
 	filter_option_changed = pyqtSignal()
 
-	def __init__(self, default_options: Dict[str, str], btn_size: int, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, default_options: str, btn_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 
 		self.btn_size = btn_size
@@ -85,7 +87,9 @@ class FilterButton(QPushButton):
 		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
 		pixmap = self._normal_pixmap if self._is_normal else self._abnormal_pixmap
-		scaled_pixmap = pixmap.scaled(self.btn_size, self.btn_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+		scaled_pixmap = pixmap.scaled(
+			self.btn_size, self.btn_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+		)
 		painter.drawPixmap(0, 0, scaled_pixmap)
 		painter.end()
 
@@ -96,11 +100,15 @@ class FilterButton(QPushButton):
 		else: 
 			self.filter_dialog.setCurrentFilterOptions(current_option)
 
-	def getCurrentFilterOptions(self) -> Dict[str, str]: 
+	def getCurrentFilterOptions(self) -> SongType: 
 		return self.filter_dialog.getCurrentFilterOptions()
 
-	def setCurrentFilterOptions(self, option: Dict[str, str]) -> None: 
+	def setCurrentFilterOptions(self, option: SongType) -> None: 
 		self.filter_dialog.setCurrentFilterOptions(option)
+
+	def setNormalState(self, search_content: str, filter_options: SongType) -> None: 
+		self._is_normal = (search_content == "") and (filter_options == SongType.ALL)
+		self.update()
 
 
 class FilterDialog(QDialog): 
@@ -108,11 +116,11 @@ class FilterDialog(QDialog):
 	button_width = 120
 	button_height = 40
 
-	def __init__(self, default_options: Dict[str, str], parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, default_options: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.my_layout = QVBoxLayout(self)
 		self.filter_columns = OptionButtonSetWidget(
-			"楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], default_options.get("songs", "すべて"), self
+			"楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], default_options, self
 		)
 		self.my_layout.addWidget(self.filter_columns)
 
@@ -131,10 +139,8 @@ class FilterDialog(QDialog):
 
 		self.setModal(True)
 
-	def getCurrentFilterOptions(self) -> Dict[str, str]: 
-		return {
-			"songs": self.filter_columns.getCurrentOption()
-		}
+	def getCurrentFilterOptions(self) -> SongType: 
+		return SongType.fromStr(self.filter_columns.getCurrentOption())
 
-	def setCurrentFilterOptions(self, option: Dict[str, str]) -> None: 
-		self.filter_columns.setCurrentOption(option.get("songs", "すべて"))
+	def setCurrentFilterOptions(self, option: SongType) -> None: 
+		self.filter_columns.setCurrentOption(option.value)

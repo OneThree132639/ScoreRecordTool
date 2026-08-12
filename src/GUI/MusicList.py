@@ -20,11 +20,13 @@ from PyQt5.QtWidgets import (
 if __package__ is None or __package__ == "": 
 	from Basics.Enums.Difficulty import Difficulty
 	from Basics.Enums.Group import Group
+	from Basics.Enums.FilterOptions import SongType
 	from Basics.Enums.SortType import SortType
 	from Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 else: 
 	from .Basics.Enums.Difficulty import Difficulty
 	from .Basics.Enums.Group import Group
+	from .Basics.Enums.FilterOptions import SongType
 	from .Basics.Enums.SortType import SortType
 	from .Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 
@@ -338,7 +340,7 @@ class MusicList(QListWidget):
 		self.setFlow(QListWidget.Flow.TopToBottom)
 		self.setSelectionMode(QListWidget.SelectionMode.NoSelection)
 		self.setUniformItemSizes(False)
-		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
 
 		self.music_list = pd.DataFrame()
@@ -580,7 +582,7 @@ class MusicList(QListWidget):
 		self._current_index = self._getCurrentIndex()
 		self._updateAllWidgets(is_special=True, special_index=self._current_index + self._num_pad)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
-		self.music_selected.emit(self._current_index) 
+		self.music_selected.emit(self.music_list.iloc[self._current_index]["id_musics"]) 
 
 	def getCurrentMusicId(self) -> int: 
 		item = self.item(self._current_index + self._num_pad)
@@ -616,12 +618,11 @@ class MusicList(QListWidget):
 		viewport.update()
 
 	def _fromMusicIdToIndex(self, music_id: int) -> int: 
+		if len(self.music_list) == 0: 
+			return 0
 		music_list_reset: pd.DataFrame = self.music_list.reset_index()
 		mask = (music_list_reset["id_musics"] == music_id)
 		if mask.any(): 
-			filtered = music_list_reset[mask]
-			logging.debug("original DataFrame:\n%s", music_list_reset.head(10))
-			logging.debug("Filtered DataFrame:\n%s", filtered)
 			index = music_list_reset.loc[mask, "index"].iloc[0]
 		else: 
 			index = 0
@@ -642,8 +643,10 @@ class MusicList(QListWidget):
 
 	def setMusicId(self, music_id: int) -> None: 
 		self._current_index = self._fromMusicIdToIndex(music_id)
-		self._updateAllWidgets(is_special=True, special_index=self._current_index + self._num_pad)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
+		self._onScrollStop()
+		
+
 class MusicListWidget(QStackedWidget): 
 
 	music_updated = pyqtSignal(int)
@@ -652,7 +655,7 @@ class MusicListWidget(QStackedWidget):
 		super().__init__(parent)
 		self.empty_music_list = MusicList(self)
 		self.addWidget(self.empty_music_list)
-		self.map_dict: Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]] = {}
+		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 
 		self.normal_cache: Dict[Difficulty, 
 			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
@@ -661,25 +664,33 @@ class MusicListWidget(QStackedWidget):
 			Dict[int, Tuple[int, str, str, str, Difficulty, int, Dict[str, Any], Optional[QPixmap], Optional[QPixmap]]]
 		] = {}
 
-	def _getMusicListIndex(self, sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str) -> int: 
-		if sort_type not in self.map_dict: 
-			self.map_dict[sort_type] = {}
-		if group not in self.map_dict[sort_type]: 
-			self.map_dict[sort_type][group] = {}
-		if difficulty not in self.map_dict[sort_type][group]: 
-			self.map_dict[sort_type][group][difficulty] = {}
-		return self.map_dict[sort_type][group][difficulty].get(search_content, -1)
+	def _getMusicListIndex(self, 
+			filter_options: SongType, sort_type: SortType, group: Union[Group, str], 
+			difficulty: Difficulty, search_content: str
+		) -> int: 
+		if filter_options not in self.map_dict: 
+			self.map_dict[filter_options] = {}
+		if sort_type not in self.map_dict[filter_options]: 
+			self.map_dict[filter_options][sort_type] = {}
+		if group not in self.map_dict[filter_options][sort_type]: 
+			self.map_dict[filter_options][sort_type][group] = {}
+		if difficulty not in self.map_dict[filter_options][sort_type][group]: 
+			self.map_dict[filter_options][sort_type][group][difficulty] = {}
+		return self.map_dict[filter_options][sort_type][group][difficulty].get(search_content, -1)
 
 	def _setMusicListIndex(self, 
-			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, index: int
+			filter_options: SongType, sort_type: SortType, group: Union[Group, str], 
+			difficulty: Difficulty, search_content: str, index: int
 		) -> None: 
-		if sort_type not in self.map_dict: 
-			self.map_dict[sort_type] = {}
-		if group not in self.map_dict[sort_type]: 
-			self.map_dict[sort_type][group] = {}
-		if difficulty not in self.map_dict[sort_type][group]: 
-			self.map_dict[sort_type][group][difficulty] = {}
-		self.map_dict[sort_type][group][difficulty][search_content] = index
+		if filter_options not in self.map_dict: 
+			self.map_dict[filter_options] = {}
+		if sort_type not in self.map_dict[filter_options]: 
+			self.map_dict[filter_options][sort_type] = {}
+		if group not in self.map_dict[filter_options][sort_type]: 
+			self.map_dict[filter_options][sort_type][group] = {}
+		if difficulty not in self.map_dict[filter_options][sort_type][group]: 
+			self.map_dict[filter_options][sort_type][group][difficulty] = {}
+		self.map_dict[filter_options][sort_type][group][difficulty][search_content] = index
 
 	def getCurrentMusicId(self) -> int: 
 		current_list: MusicList = self.currentWidget()
@@ -770,22 +781,20 @@ class MusicListWidget(QStackedWidget):
 		container.addWidget(music_card)
 		return container, normal_height, music_height
 
-	def switchList(
-		self, sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
-		music_list: pd.DataFrame, vocal_list: pd.DataFrame, config: Dict[str, Any], 
-		get_cover_func: Callable[[int], Optional[np.ndarray]], music_id: int = 0
-	) -> None: 
-		if music_id == 0: 
-			music_id = self.getCurrentMusicId()
-		index = self._getMusicListIndex(sort_type, group, difficulty, search_content)
+	def appendList(self, 
+			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
+			filter_options: SongType, 
+			music_list: pd.DataFrame, vocal_list: pd.DataFrame, config: Dict[str, Any], 
+			get_cover_func: Callable[[int], Optional[np.ndarray]]
+		) -> int: 
+		index = self._getMusicListIndex(
+			filter_options, sort_type, group, difficulty, search_content
+		)
 		if index != -1: 
-			self.setCurrentIndex(index)
-			self.setCurrentMusicId(music_id)
-			return
+			return index
 
 		if len(music_list) == 0: 
-			self.setCurrentIndex(0)
-			return
+			return 0
 		
 		new_music_list = MusicList(self)
 		new_music_list.refreshData(
@@ -795,10 +804,24 @@ class MusicListWidget(QStackedWidget):
 		)
 		new_music_list.music_selected.connect(self.music_updated.emit)
 
-		self._setMusicListIndex(sort_type, group, difficulty, search_content, self.count())
+		self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, self.count())
 		self.addWidget(new_music_list)
-		self.setCurrentIndex(self.count() - 1)
-		self.setCurrentMusicId(music_id)
+		return self.count() - 1
+	def switchList(self, 
+			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
+			filter_options: SongType, 
+			music_list: pd.DataFrame, vocal_list: pd.DataFrame, config: Dict[str, Any], 
+			get_cover_func: Callable[[int], Optional[np.ndarray]], music_id: int = 0
+		) -> None: 
+		if music_id == 0: 
+			music_id = self.getCurrentMusicId()
+		index = self.appendList(
+			sort_type, group, difficulty, search_content, filter_options, 
+			music_list, vocal_list, config, get_cover_func
+		)
+		self.setCurrentIndex(index)
+		if index > 0: 
+			self.setCurrentMusicId(music_id)
 
 	def updateDisplayCard(self, difficulty: Difficulty, card: DisplayCard) -> None: 
 		music_id = self.getCurrentMusicId()
@@ -813,3 +836,23 @@ class MusicListWidget(QStackedWidget):
 		current_list: MusicList = self.currentWidget()
 		if current_list is not None: 
 			current_list.randomSmoothScrolling(music_id)
+
+	def getCurrentMusicList(self) -> pd.DataFrame: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is not None: 
+			return current_list.music_list
+		return pd.DataFrame()
+
+	def getCachedMusicList(self, 
+			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
+			filter_options: SongType
+		) -> Optional[pd.DataFrame]: 
+		index = self._getMusicListIndex(
+			filter_options, sort_type, group, difficulty, search_content
+		)
+		if index == -1: 
+			return None
+		music_list_widget: MusicList = self.widget(index)
+		if music_list_widget is not None: 
+			return music_list_widget.music_list
+		return None

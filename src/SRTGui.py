@@ -19,13 +19,14 @@ if __package__ is None or __package__ == "":
 	from DataManager.DataManager import DataManager
 	from GUI.Basics.Enums.Difficulty import Difficulty
 	from GUI.Basics.Enums.Group import Group
+	from GUI.Basics.Enums.FilterOptions import SongType
 	from GUI.Basics.Enums.SortType import SortType
 	from GUI.Dialog import centerDialog
 	from GUI.Dialog import MessageObject, ProgressObject, UpdateController
 	from GUI.DifficultyButton import DifficultyButtonSet
 	from GUI.FilterDialog import FilterButton
 	from GUI.GroupButton import GroupButtonSet
-	from GUI.MusicList import DisplayCard, MusicList, MusicListWidget
+	from GUI.MusicList import DisplayCard, MusicListWidget
 	from GUI.RandomDialog import RandomWidget
 	from GUI.SearchBox import SearchBox
 	from GUI.SortTypeBox import SortTypeBox
@@ -33,30 +34,17 @@ else:
 	from .DataManager.DataManager import DataManager
 	from .GUI.Basics.Enums.Difficulty import Difficulty
 	from .GUI.Basics.Enums.Group import Group
+	from .GUI.Basics.Enums.FilterOptions import SongType
 	from .GUI.Basics.Enums.SortType import SortType
 	from .GUI.Dialog import centerDialog
 	from .GUI.Dialog import MessageObject, ProgressObject, UpdateController
 	from .GUI.DifficultyButton import DifficultyButtonSet
 	from .GUI.FilterDialog import FilterButton
 	from .GUI.GroupButton import GroupButtonSet
-	from .GUI.MusicList import DisplayCard, MusicList, MusicListWidget
+	from .GUI.MusicList import DisplayCard, MusicListWidget
 	from .GUI.RandomDialog import RandomWidget
 	from .GUI.SearchBox import SearchBox
 	from .GUI.SortTypeBox import SortTypeBox
-
-class Cache: 
-
-	def __init__(self) -> None: 
-		self.music_id = 1
-		self.index = 0
-		self.filter_option: Dict[str, str] = {"songs": "すべて"}
-		self.search_content = ""
-		self.random_option: Tuple[str, List[str], Tuple[int, int]] = ("現在の難易度", [], (5, 38))
-		self.group: Union[Group, str] = Group.ALL
-		self.difficulty = Difficulty.EASY
-		self.music_list = pd.DataFrame()
-
-		self.list_cache: Dict[Union[Group, str], Dict[Difficulty, pd.DataFrame]] = {}
 
 class MainWindow(QMainWindow): 
 
@@ -71,8 +59,6 @@ class MainWindow(QMainWindow):
 		super().__init__(parent)
 		self.setWindowTitle("Score Record Tool")
 		self.resize(1000, 600)
-
-		self.cache = Cache()
 
 		self.project_base_dir = project_base_dir
 		self.buildin_dir = buildin_dir
@@ -173,6 +159,12 @@ class MainWindow(QMainWindow):
 		sys.exit(1)
 		return False
 
+	def _initRefresh(self) -> None: 
+		difficulty = Difficulty.fromStr(self.config.get("difficulty", "easy"))
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.refresh()
+		music_id = self.config.get("music_id", 0)
+		self.music_list_widget.setCurrentMusicId(music_id)
 
 	def updateQuery(self) -> None: 
 		msg_box = QMessageBox(self)
@@ -197,7 +189,7 @@ class MainWindow(QMainWindow):
 				msg_box.exec_()
 				sys.exit(1)
 				return
-			self.refresh()
+			self._initRefresh()
 
 	def updateResources(self) -> None: 
 		self.update_ctrl = UpdateController(self)
@@ -246,7 +238,7 @@ class MainWindow(QMainWindow):
 
 		msg_box.exec_()
 
-		self.refresh()
+		self._initRefresh()
 
 	def _filterByUnit(self, music_list: pd.DataFrame, group: Group) -> pd.DataFrame: 
 		music_tags = self.data_manager.musicTags
@@ -264,13 +256,13 @@ class MainWindow(QMainWindow):
 		music_ids = self.data_manager.custom_list[group]
 		return music_list[music_list["id_musics"].isin(music_ids)]
 
-	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: Dict[str, str]) -> pd.DataFrame: 
-		match filter_option.get("songs", "すべて"): 
-			case "すべて": 
+	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: SongType) -> pd.DataFrame: 
+		match filter_option: 
+			case SongType.ALL: 
 				pass
-			case "書き下ろし楽曲": 
+			case SongType.COMMISSIONED: 
 				music_list = music_list[(music_list["seq"] // 100000).isin((17, 21, 22, 23, 24, 25, 26, 27))]
-			case "APPENDあり": 
+			case SongType.HAS_APPEND: 
 				music_ids = music_list[music_list["musicDifficulty"] == "append"]["id_musics"].unique()
 				music_list = music_list[music_list["id_musics"].isin(music_ids)]
 		return music_list
@@ -285,20 +277,28 @@ class MainWindow(QMainWindow):
 		result: pd.DataFrame = music_list[mask]
 		return result
 
-	def _getGroupDifficultyMusicList(self, group: Union[Group, str], difficulty: Difficulty) -> pd.DataFrame: 
-		if group not in self.cache.list_cache: 
-			self.cache.list_cache[group] = {}
-		if difficulty not in self.cache.list_cache[group]: 
-			music_table = self.data_manager.music_table
-			assert music_table is not None
-			music_list = music_table.copy()
-			if isinstance(group, Group): 
-				music_list = self._filterByUnit(music_list, group)
-			elif isinstance(group, str): 
-				music_list = self._filterByCustomGroup(music_list, group)
-			music_list: pd.DataFrame = music_list[music_list["musicDifficulty"] == difficulty.value.lower()]
-			self.cache.list_cache[group][difficulty] = music_list
-		return self.cache.list_cache[group][difficulty]
+	def _filtering(self, 
+			group: Union[Group, str], difficulty: Difficulty, filter_option: SongType, 
+			search_content: str, sort_type: SortType
+		) -> pd.DataFrame: 
+		music_table: Optional[pd.DataFrame] = self.data_manager.music_table
+		assert music_table is not None
+		music_list: pd.DataFrame = music_table.copy()
+		music_list: pd.DataFrame = music_list[music_list["musicDifficulty"] == difficulty.value.lower()]
+		if isinstance(group, Group): 
+			music_list = self._filterByUnit(music_list, group)
+		elif isinstance(group, str): 
+			music_list = self._filterByCustomGroup(music_list, group)
+		music_list = self._filterByFilterOptions(music_list, filter_option)
+		music_list = self._filterBySearchContent(music_list, search_content)
+
+		sort_tuple = ("seq", "publishedAt", "pronunciation", "playLevel")
+		sort_labels = [sort_tuple[sort_type.toIndex()], "seq"]
+		sort_labels = list(dict.fromkeys(sort_labels))
+		music_list = music_list.sort_values(by=sort_labels, ascending=True)
+
+		return music_list
+
 
 	def _getMusicLevels(self, music_id: int) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
 		music_table = self.data_manager.music_table
@@ -309,13 +309,12 @@ class MainWindow(QMainWindow):
 		difficulties = tuple(diff_list.loc[diff, "playLevel"] if diff in diff_list.index else None for diff in diffs)
 		return difficulties # type: ignore
 
-	def refreshCurrentIndex(self, index: int) -> None: 
-		difficulty = self.cache.difficulty
-		if len(self.cache.music_list) == 0: 
+	def refreshCurrentIndex(self, music_id: int) -> None: 
+		difficulty = self.diff_button_set.getDifficulty()
+		if len(self.music_list_widget.getCurrentMusicList()) == 0: 
 			difficulties = (None, None, None, None, None, None)
 		else: 
-			self.cache.music_id = self.cache.music_list.iloc[index]["id_musics"]
-			difficulties = self._getMusicLevels(self.cache.music_id)
+			difficulties = self._getMusicLevels(music_id)
 		self.diff_button_set.setLevels(difficulties, difficulty) # type: ignore
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
 		self.display_card.pause()
@@ -326,18 +325,13 @@ class MainWindow(QMainWindow):
 		sort_type = self.sort_type_box.getCurrentSortType()
 		group = self.group_button_set.getCurrentGroup()
 		difficulty = self.diff_button_set.getDifficulty()
-		filter_option = self.filter_button.filter_dialog.getCurrentFilterOptions()
+		filter_options = self.filter_button.filter_dialog.getCurrentFilterOptions()
 		search_content = self.search_box.text()
 		music_id = self.music_list_widget.getCurrentMusicId()
 
-		music_list = self._getGroupDifficultyMusicList(group, difficulty)
-		music_list: pd.DataFrame = self._filterByFilterOptions(music_list, filter_option)
-		music_list: pd.DataFrame = music_list[music_list["publishedAt"] < int(time.time() * 1000)]
-		sort_tuple = ("seq", "publishedAt", "pronunciation", "playLevel")
-		sort_labels = [sort_tuple[self.sort_type_box.currentIndex()], "seq"]
-		sort_labels = list(dict.fromkeys(sort_labels))
-		music_list = music_list.sort_values(by=sort_labels, ascending=True)
-		music_list = self._filterBySearchContent(music_list, search_content)
+		music_list = self._filtering(
+			group, difficulty, filter_options, search_content, sort_type
+		)
 
 		if len(music_list) == 0: 
 			current_index = 0
@@ -348,77 +342,85 @@ class MainWindow(QMainWindow):
 			else: 
 				current_index = music_list.set_index("id_musics").index.get_loc(music_id)
 
-		self.cache.music_list = music_list
-		self.cache.index = current_index
-		self.cache.music_id = music_id
-		self.cache.search_content = search_content
-		self.cache.filter_option = filter_option
-		self.cache.group = group
-		self.cache.difficulty = difficulty
-
 		difficulties = self._getMusicLevels(music_id)
 		vocal_list = self.data_manager.vocal_table
 		assert vocal_list is not None
 
 		self.music_list_widget.switchList(
-			sort_type, group, difficulty, search_content, 
+			sort_type, group, difficulty, search_content, filter_options, 
 			music_list, vocal_list, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
 			self.data_manager.getCoverArray, music_id
 		)
 		self.diff_button_set.setLevels(difficulties, difficulty) # type: ignore
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.filter_button.setNormalState(search_content, filter_options)
 		self.display_card.pause()
 		self.display_card.resume()
 
 		self._saveConfig()
 
 	def randomRolling(self) -> None: 
-		self.cache.random_option = self.random_widget.setting_dialog.getCurrentOptions()
-		difficulty_type, difficulties, level_range = self.cache.random_option
+		random_option = self.random_widget.setting_dialog.getCurrentOptions()
+		difficulty_type, difficulties, level_range = random_option
 		if difficulty_type == "現在の難易度": 
-			difficulty = self.cache.difficulty
-			music_list = self._getGroupDifficultyMusicList(self.cache.group, difficulty)
+			music_list = self.music_list_widget.getCurrentMusicList().copy()
 		elif difficulty_type == "複数の難易度": 
 			music_list = pd.DataFrame()
+			sort_type = self.sort_type_box.getCurrentSortType()
+			group = self.group_button_set.getCurrentGroup()
+			filter_option = self.filter_button.getCurrentFilterOptions()
+			search_content = self.search_box.text()
+			vocal_table = self.data_manager.vocal_table
+			assert vocal_table is not None
+
 			for diff in difficulties: 
 				diff_enum = Difficulty.fromStr(diff)
-				music_list = pd.concat([music_list, self._getGroupDifficultyMusicList(self.cache.group, diff_enum)])
-		music_list = self._filterByFilterOptions(music_list, self.cache.filter_option)
-		music_list: pd.DataFrame = music_list[
-			(level_range[0] <= music_list["playLevel"]) & (music_list["playLevel"] <= level_range[1])
-		]
-		music_list = self._filterBySearchContent(music_list, self.cache.search_content)
+				appendant = self.music_list_widget.getCachedMusicList(
+					sort_type, group, diff_enum, search_content, filter_option
+				)
+				if appendant is None: 
+					appendant = self._filtering(group, diff_enum, filter_option, search_content, sort_type)
+					self.music_list_widget.appendList(
+						sort_type, group, diff_enum, search_content, filter_option, appendant, 
+						vocal_table, self.data_manager.config["button"][diff_enum.value.lower()]["pressed"], 
+						self.data_manager.getCoverArray
+					)
+				music_list = pd.concat([music_list, appendant])
+
+		music_list = music_list[(music_list["playLevel"] >= level_range[0]) & (music_list["playLevel"] <= level_range[1])]
+		music_list.reset_index(drop=True, inplace=True)
 
 		selected_row = music_list.sample(n=1).iloc[0]
 		selected_music_id = selected_row["id_musics"]
 		selected_difficulty = Difficulty.fromStr(selected_row["musicDifficulty"])
 
-		self.diff_button_set.setLevels(self._getMusicLevels(selected_music_id), selected_difficulty)
-		self.diff_button_set.setCheckedDifficulty(selected_difficulty)
-		self.cache.difficulty = selected_difficulty
-		self.cache.music_id = selected_music_id
+		self.diff_button_set.setLevels((None, None, None, None, None, None), selected_difficulty)
 		self.refresh()
 		self.music_list_widget.randomSmoothScrolling(selected_music_id)
 
 		self._saveConfig()
 
 	def _saveConfig(self) -> None: 
-		self.config["difficulty"] = self.diff_button_set.getDifficulty().value
-		self.config["filter"] = self.filter_button.getCurrentFilterOptions()
-		self.config["group"] = self.group_button_set.getCurrentGroupConfig()
-		self.config["music_id"] = self.music_list_widget.getCurrentMusicId()
-		self.config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
-		self.config["search"] = self.search_box.text()
-		self.config["sort_type"] = self.sort_type_box.currentText()
+		config = {}
+		config["difficulty"] = self.diff_button_set.getDifficulty().value
+		config["filter"] = self.filter_button.getCurrentFilterOptions().value
+		config["group"] = self.group_button_set.getCurrentGroupConfig()
+		config["music_id"] = self.music_list_widget.getCurrentMusicId()
+		config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
+		config["search"] = self.search_box.text()
+		config["sort_type"] = self.sort_type_box.currentText()
 
 		config_path = os.path.join(self.data_dir, "config", "config.json")
 		os.makedirs(os.path.dirname(config_path), exist_ok=True)
 		with open(config_path, "w", encoding="utf-8") as f: 
-			json.dump(self.config, f, indent=4, ensure_ascii=False)
+			json.dump(config, f, indent=4, ensure_ascii=False)
 
 	def _loadConfig(self) -> None: 
 		config_path = os.path.join(self.data_dir, "config", "config.json")
 		if os.path.exists(config_path): 
-			with open(config_path, "r", encoding="utf-8") as f: 
-				self.config = json.load(f)
+			try: 
+				with open(config_path, "r", encoding="utf-8") as f: 
+					self.config = json.load(f)
+			except Exception as e: 
+				logging.warning("Failed to load config file: %s. Using default config.", e)
 

@@ -13,3 +13,6 @@ class SortType(Enum):
 			if sort_type.value == text: 
 				return sort_type
 		raise ValueError(f"Invalid SortType string: {text}")
+
+	def toIndex(self) -> int: 
+		return list(SortType).index(self)
