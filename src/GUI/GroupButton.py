@@ -148,7 +148,7 @@ class TextButton(GroupButton):
 
 		font_size = self.short_size if len(self.my_text) <= 3 else self.long_size
 		html_text = (
-			"<span style=\"font-size: {}pt; font-family: FOT-RodinNTLG Pro; \">{}</span>"
+			"<span style=\"font-size: {}px; font-family: FOT-RodinNTLG Pro; \">{}</span>"
 		).format(font_size, self.my_text)
 		self.document.setHtml(html_text)
 		self.document.setTextWidth(available_width)
@@ -179,7 +179,7 @@ class TextButton(GroupButton):
 		font_size = self.short_size if len(self.my_text) <= 3 else self.long_size
 
 		html_text = (
-			"<span style=\"color: {}; font-size: {}pt; font-family: FOT-RodinNTLG Pro; \">{}</span>"
+			"<span style=\"color: {}; font-size: {}px; font-family: FOT-RodinNTLG Pro; \">{}</span>"
 		).format(color.name(), font_size, self.my_text)
 
 		self.document.setHtml(html_text)

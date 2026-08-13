@@ -36,7 +36,7 @@ class MarqueeLabel(QLabel):
 
 		font = QFont()
 		font.setFamily(font_name)
-		font.setPointSize(font_size)
+		font.setPixelSize(font_size)
 		self.setFont(font)
 
 		self.offset = 0
@@ -133,7 +133,7 @@ class LevelLabel(QLabel):
 		font = QFont()
 		font.setFamily("FOT-RodinNTLG Pro")
 		font.setWeight(QFont.Weight.Black)
-		font.setPointSizeF(self.label_size * self.special_text_font_size_percentage)
+		font.setPixelSize(int(self.label_size * self.special_text_font_size_percentage))
 		path.addText(QPointF(0, 0), font, "楽曲Lv.")
 
 		bounding_rect = path.boundingRect()

@@ -83,7 +83,7 @@ class BasicCard(QWidget):
 		if self.cover is None: 
 			self.cover_label.setText("ジャケット画像がありません")
 			font = QFont()
-			font.setPointSize(self.small_height)
+			font.setPixelSize(self.small_height)
 			self.cover_label.setFont(font)
 		elif isinstance(self.cover, np.ndarray): 
 			self.pixmap = self._np_to_pixmap(self.cover)
@@ -228,7 +228,7 @@ class MusicCard(BasicCard):
 
 class EmptyLabel(QLabel): 
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, pixel_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.setText("該当する楽曲がありません")
 		self.setWordWrap(False)
@@ -241,7 +241,7 @@ class EmptyLabel(QLabel):
 		)
 
 		font = QFont()
-		font.setPointSize(20)
+		font.setPixelSize(pixel_size)
 		self.setFont(font)
 
 class DisplayCard(QWidget): 
@@ -277,7 +277,7 @@ class DisplayCard(QWidget):
 		if pixmap is None: 
 			self.cover_label.setText("ジャケット画像がありません")
 			font = QFont()
-			font.setPointSize(15)
+			font.setPixelSize(self.large_height)
 			self.cover_label.setFont(font)
 		elif isinstance(pixmap, QPixmap): 
 			self.cover_label.setPixmap(pixmap)
@@ -299,7 +299,7 @@ class DisplayCard(QWidget):
 		if pixmap is None: 
 			self.cover_label.setText("ジャケット画像がありません")
 			font = QFont()
-			font.setPointSize(15)
+			font.setPixelSize(self.large_height)
 			self.cover_label.setFont(font)
 		elif isinstance(pixmap, QPixmap): 
 			self.cover_label.setPixmap(pixmap)
@@ -358,7 +358,7 @@ class MusicList(QListWidget):
 
 	music_selected = pyqtSignal(int)
 
-	def __init__(self, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, pixel_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 
 		self.setFlow(QListWidget.Flow.TopToBottom)
@@ -386,7 +386,7 @@ class MusicList(QListWidget):
 		self._update_timer.setInterval(self.update_interval)
 		self._update_timer.timeout.connect(self._updateAllContainerWidths)
 
-		self.empty_label = EmptyLabel(self)
+		self.empty_label = EmptyLabel(pixel_size, self)
 		self.empty_label.raise_()
 		
 		vertical_scrollbar = self.verticalScrollBar()
@@ -667,8 +667,7 @@ class MusicList(QListWidget):
 
 	def setMusicId(self, music_id: int) -> None: 
 		self._current_index = self._fromMusicIdToIndex(music_id)
-		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
-		self._onScrollStop()
+		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index), False)
 		
 
 class MusicListWidget(QStackedWidget): 
@@ -685,7 +684,7 @@ class MusicListWidget(QStackedWidget):
 		self.large_height = int(init_height * self.large_percentage)
 		self.icon_size = int(init_height * self.icon_percentage)
 		self.label_size = int(init_height * self.label_percentage)
-		self.empty_music_list = MusicList(self)
+		self.empty_music_list = MusicList(self.large_height, self)
 		self.addWidget(self.empty_music_list)
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 
@@ -837,7 +836,7 @@ class MusicListWidget(QStackedWidget):
 		if len(music_list) == 0: 
 			return 0
 		
-		new_music_list = MusicList(self)
+		new_music_list = MusicList(self.large_height, self)
 		new_music_list.refreshData(
 			music_list, vocal_list, difficulty, config,
 			get_cover_func=get_cover_func, 
@@ -848,6 +847,7 @@ class MusicListWidget(QStackedWidget):
 		self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, self.count())
 		self.addWidget(new_music_list)
 		return self.count() - 1
+
 	def switchList(self, 
 			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
 			filter_options: SongType, 

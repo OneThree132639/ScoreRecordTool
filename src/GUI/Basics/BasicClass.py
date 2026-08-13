@@ -77,7 +77,9 @@ def get_round_rect_pixmap(width: int, height: int, background_color: QColor, tex
 
 	painter.setPen(QPen(Qt.GlobalColor.black))
 	painter.setBrush(Qt.BrushStyle.NoBrush)
-	font = QFont("FOT-RodinNTLG Pro", int(shorter * 0.4))
+	font = QFont()
+	font.setFamily("FOT-RodinNTLG Pro")
+	font.setPixelSize(int(shorter * 0.4)) 
 	painter.setFont(font)
 	painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, text)
 	painter.end()
@@ -169,7 +171,7 @@ class OptionColumn(QWidget):
 		painter.setPen(QPen())
 		color = self.enabled_color if self.isEnabled() else self.disabled_color
 		html_text = (
-			"<span style=\"font-size: {}pt; font-family: FOT-RodinNTLG Pro; color: {}; \">"
+			"<span style=\"font-size: {}px; font-family: FOT-RodinNTLG Pro; color: {}; \">"
 			"{}</span>"
 		).format(self.font_size, color, self.column_text) 
 		self.document.setHtml(html_text)
@@ -315,7 +317,8 @@ class OptionButtonSetWidget(QWidget):
 class OptionLineEdit(QLineEdit): 
 
 	fixed_height_percentage = 0.8
-	fixed_width_percentage = 1.6
+	fixed_width_percentage = 2.0
+	font_size_percentage = 0.6
 
 	focused_out = pyqtSignal()
 
@@ -334,19 +337,19 @@ class OptionLineEdit(QLineEdit):
 		self.glow_effect.setEnabled(True)
 
 		self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-		self.setStyleSheet(
-			"QLineEdit {\n"
+		self.setStyleSheet((
+			"QLineEdit {{\n"
 			"\tbackground-color: #FFFFFF; \n"
 			"\tcolor: #000000; \n"
 			"\tborder: 1px solid gray; \n"
 			"\tborder radius: 10px; \n"
 			"\tfont-family: nintendo_NTLG-DB_001; \n"
-			"\tfont-size: 15px; \n"
-			"}"
-			"QLineEdit:focus {\n"
+			"\tfont-size: {}px; \n"
+			"}}"
+			"QLineEdit:focus {{\n"
 			"\tborder: 1px solid skyblue; \n"
-			"}"
-		)
+			"}}"
+		).format(int(self.fixed_height * self.font_size_percentage)))
 
 	def focusOutEvent(self, event: QFocusEvent) -> None: 
 		super().focusOutEvent(event)
