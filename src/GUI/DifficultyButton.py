@@ -1,8 +1,8 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from PyQt5.QtCore import QRect, QRectF, Qt
+from PyQt5.QtCore import QRect, Qt
 from PyQt5.QtGui import (
-	QBrush, QColor, QLinearGradient, QPainter, QPaintEvent, 
+	QBrush, QColor, QFont, QFontMetrics, QLinearGradient, QPainter, QPaintEvent, 
 	QPalette, QPen, QRegion, QTextBlockFormat, QTextCursor, QTextDocument
 )
 from PyQt5.QtWidgets import (
@@ -13,10 +13,12 @@ if __package__ is None or __package__ == "":
 	from Basics.BasicClass import BasicButton
 	from Basics.Enums.ButtonState import ButtonState
 	from Basics.Enums.Difficulty import Difficulty
+	from Basics.PyQt5Assistants.StrToEnum import strToFontStyle, strToFontWeight
 else: 
 	from .Basics.BasicClass import BasicButton
 	from .Basics.Enums.ButtonState import ButtonState
 	from .Basics.Enums.Difficulty import Difficulty
+	from .Basics.PyQt5Assistants.StrToEnum import strToFontStyle, strToFontWeight
 
 class DifficultyButton(BasicButton): 
 
@@ -98,43 +100,34 @@ class OrdinaryButton(DifficultyButton):
 		painter.drawEllipse(scaled_rect)
 
 		painter.save()
-		painter.setPen(QPen())
-		html_text = (
-			"<div style='text-align: center; font-size: {fn_size}px; font-family: {fn_family}; "
-			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span>{content}</span></div>"
-		).format(
-			fn_size = int(self.btn_size * self.font_size_percentage), 
-			fn_family = self.config[self._current_state.value]["font-family"], 
-			fn_weight = self.config[self._current_state.value]["font-weight"], 
-			fn_style = self.config[self._current_state.value]["font-style"], 
-			content = self.level, 
-			color = self.config[self._current_state.value]["font-color"]
+		font_size = int(self.btn_size * self.font_size_percentage)
+		font = QFont()
+		font.setFamily(self.config[self._current_state.value]["font-family"])
+		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
+		font.setStyle(strToFontStyle(self.config[self._current_state.value]["font-style"]))
+		font.setPixelSize(font_size)
+		metrics = QFontMetrics(font)
+		text_height = metrics.height()
+		text_width = metrics.width(str(self.level))
+		text_rect = QRect(
+			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
+			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2),
+			text_width,
+			text_height
 		)
-		self.document.setHtml(html_text)
-		cursor = QTextCursor(self.document)
-		while True: 
-			block_format = cursor.blockFormat()
-			block_format.setTopMargin(0)
-			block_format.setBottomMargin(0)
-			block_format.setLineHeight(50, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
-			cursor.setBlockFormat(block_format)
-			if not cursor.movePosition(QTextCursor.MoveOperation.NextBlock): 
-				break
-
-		self.document.setTextWidth(self.width())
-		doc_size = self.document.size()
-		doc_x = (rect.width() - doc_size.width()) / 2
-		doc_y = (rect.height() - doc_size.height()) / 2
-		target_rect = QRectF(doc_x, doc_y, doc_size.width(), doc_size.height())
-		painter.translate(target_rect.topLeft())
-		self.document.drawContents(painter, QRectF(0, 0, target_rect.width(), target_rect.height()))
+		painter.setFont(font)
+		painter.setPen(QPen(QColor(self.config[self._current_state.value]["font-color"])))
+		painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, str(self.level))
 		painter.restore()
+
 		painter.end()
 
 class AppendButton(DifficultyButton): 
 
 	ruby_percentage = 0.6
 	font_size_percentage = 0.45
+	ruby_up_percentage = 0.2
+	text_down_percentage = 0.15
 
 	def __init__(self, size: int, difficulty: Difficulty, level: int, 
 			config: Dict[str, Dict[str, Any]], parent: Optional[QWidget]=None
@@ -175,37 +168,45 @@ class AppendButton(DifficultyButton):
 		painter.drawEllipse(scaled_rect)
 
 		painter.save()
-		painter.setPen(QPen())
-		html_text = (
-			"<div style='text-align: center; font-family: {fn_family}; "
-			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span style="
-			"'font-size: {ruby_size}px'>APD</span><br><span style='font-size: {fn_size}px'>{content}</span></div>"
-		).format(
-			fn_size = int(self.btn_size * self.font_size_percentage), 
-			ruby_size = int(self.btn_size * self.font_size_percentage * self.ruby_percentage),
-			fn_family = self.config[self._current_state.value]["font-family"], 
-			fn_weight = self.config[self._current_state.value]["font-weight"], 
-			fn_style = self.config[self._current_state.value]["font-style"], 
-			content = self.level, 
-			color = self.config[self._current_state.value]["font-color"]
+		font_size = int(self.btn_size * self.font_size_percentage)
+		font = QFont()
+		font.setFamily(self.config[self._current_state.value]["font-family"])
+		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
+		font.setStyle(strToFontStyle(self.config[self._current_state.value]["font-style"]))
+		font.setPixelSize(font_size)
+		metrics = QFontMetrics(font)
+		text_height = metrics.height()
+		text_width = metrics.width(str(self.level))
+		text_rect = QRect(
+			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
+			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 + scaled_rect.height() * self.text_down_percentage),
+			text_width,
+			text_height
 		)
-		self.document.setHtml(html_text)
-		cursor = QTextCursor(self.document)
-		while True: 
-			block_format = cursor.blockFormat()
-			block_format.setTopMargin(0)
-			block_format.setBottomMargin(0)
-			block_format.setLineHeight(50, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
-			cursor.setBlockFormat(block_format)
-			if not cursor.movePosition(QTextCursor.MoveOperation.NextBlock): 
-				break
+		painter.setFont(font)
+		painter.setPen(QPen(QColor(self.config[self._current_state.value]["font-color"])))
+		painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, str(self.level))
+		painter.restore()
 
-		self.document.setTextWidth(self.width())
-		doc_size = self.document.size()
-		doc_x = (rect.width() - doc_size.width()) / 2
-		doc_y = (rect.height() - doc_size.height()) / 2
-		painter.translate(doc_x, doc_y)
-		self.document.drawContents(painter)
+		painter.save()
+		font_size = int(self.btn_size * self.font_size_percantage * self.ruby_percentage)
+		font = QFont()
+		font.setFamily(self.config[self._current_state.value]["font-family"])
+		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
+		font.setStyle(strToFontStyle(self.config[self._current_state.value]["font-style"]))
+		font.setPixelSize(font_size)
+		metrics = QFontMetrics(font)
+		text_height = metrics.height()
+		text_width = metrics.width("APD")
+		text_rect = QRect(
+			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
+			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 - scaled_rect.height() * self.ruby_up_percentage),
+			text_width,
+			text_height
+		)
+		painter.setFont(font)
+		painter.setPen(QPen(QColor(self.config[self._current_state.value]["font-color"])))
+		painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, "APD")
 		painter.restore()
 		painter.end()
 

@@ -364,7 +364,7 @@ class MusicList(QListWidget):
 		self.setFlow(QListWidget.Flow.TopToBottom)
 		self.setSelectionMode(QListWidget.SelectionMode.NoSelection)
 		self.setUniformItemSizes(False)
-		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
 
 		self.music_list = pd.DataFrame()
@@ -483,7 +483,7 @@ class MusicList(QListWidget):
 		)
 		viewport_height = self._getViewportHeight()
 		assert self.normal_height is not None
-		self._num_pad = int((viewport_height - self.normal_height) / (2 * self.normal_height)) + 3
+		self._num_pad = int((viewport_height - self.normal_height) / (2 * self.normal_height)) + 4
 		for i in range(self._num_pad - 1): 
 			self._insertContainer(
 				music_table.iloc[(self._num_line - 2 - i) % self._num_line], 
