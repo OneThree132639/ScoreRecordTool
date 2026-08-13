@@ -72,7 +72,7 @@ class DifficultyButton(BasicButton):
 
 class OrdinaryButton(DifficultyButton): 
 
-	font_size_percantage = 0.5
+	font_size_percentage = 0.5
 
 	def __init__(self, size: int, difficulty: Difficulty, level: int, 
 			config: Dict[str, Dict[str, str]], parent: Optional[QWidget]=None
@@ -103,7 +103,7 @@ class OrdinaryButton(DifficultyButton):
 			"<div style='text-align: center; font-size: {fn_size}px; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span>{content}</span></div>"
 		).format(
-			fn_size = int(self.btn_size * self.font_size_percantage), 
+			fn_size = int(self.btn_size * self.font_size_percentage), 
 			fn_family = self.config[self._current_state.value]["font-family"], 
 			fn_weight = self.config[self._current_state.value]["font-weight"], 
 			fn_style = self.config[self._current_state.value]["font-style"], 
@@ -134,7 +134,7 @@ class OrdinaryButton(DifficultyButton):
 class AppendButton(DifficultyButton): 
 
 	ruby_percentage = 0.6
-	font_size_percantage = 0.45
+	font_size_percentage = 0.45
 
 	def __init__(self, size: int, difficulty: Difficulty, level: int, 
 			config: Dict[str, Dict[str, Any]], parent: Optional[QWidget]=None
@@ -181,8 +181,8 @@ class AppendButton(DifficultyButton):
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span style="
 			"'font-size: {ruby_size}px'>APD</span><br><span style='font-size: {fn_size}px'>{content}</span></div>"
 		).format(
-			fn_size = int(self.btn_size * self.font_size_percantage), 
-			ruby_size = int(self.btn_size * self.font_size_percantage * self.ruby_percentage),
+			fn_size = int(self.btn_size * self.font_size_percentage), 
+			ruby_size = int(self.btn_size * self.font_size_percentage * self.ruby_percentage),
 			fn_family = self.config[self._current_state.value]["font-family"], 
 			fn_weight = self.config[self._current_state.value]["font-weight"], 
 			fn_style = self.config[self._current_state.value]["font-style"], 

@@ -153,7 +153,7 @@ class LevelLabel(QLabel):
 
 class OrdinaryLabel(LevelLabel): 
 
-	font_size_percantage = 0.43
+	font_size_percentage = 0.43
 
 	def __init__(self, level: int, is_special: bool, label_size: int, 
 			difficulty: Difficulty, config: Dict[str, str], 
@@ -175,11 +175,12 @@ class OrdinaryLabel(LevelLabel):
 
 		painter.save()
 		painter.setPen(QPen())
+		font_size = int(self.label_size * self.font_size_percentage * self.special_percentage)
 		html_text = (
 			"<div style='text-align: center; font-size: {fn_size}px; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span>{content}</span></div>"
 		).format(
-			fn_size = int(self.label_size * self.font_size_percantage * self.special_percentage), 
+			fn_size = font_size, 
 			fn_family = self.config["font-family"], 
 			fn_weight = self.config["font-weight"], 
 			fn_style = self.config["font-style"], 
@@ -200,7 +201,7 @@ class OrdinaryLabel(LevelLabel):
 		self.document.setTextWidth(self.width())
 		doc_size = self.document.size()
 		doc_x = (rect.width() - doc_size.width()) / 2
-		doc_y = (rect.height() - doc_size.height()) / 2 - 50
+		doc_y = (rect.height() - doc_size.height()) / 2
 		target_rect = QRectF(doc_x, doc_y, doc_size.width(), doc_size.height())
 		painter.translate(target_rect.topLeft())
 		self.document.drawContents(painter, QRectF(0, 0, target_rect.width(), target_rect.height()))
@@ -216,7 +217,7 @@ class OrdinaryLabel(LevelLabel):
 class AppendLabel(LevelLabel): 
 
 	ruby_percentage = 0.6
-	font_size_percantage = 0.35
+	font_size_percentage = 0.35
 	text_down_percentage = 0.05
 	special_append_percentage = 0.95
 
@@ -253,7 +254,7 @@ class AppendLabel(LevelLabel):
 		painter.drawEllipse(scaled_rect)
 
 		scale = self.special_append_percentage if self.is_special else 1
-		basic_font_size = self.label_size * self.font_size_percantage * self.special_percentage * scale
+		basic_font_size = self.label_size * self.font_size_percentage * self.special_percentage * scale
 		painter.save()
 		painter.setPen(QPen())
 		html_text = (
