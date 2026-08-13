@@ -8,7 +8,10 @@ import zipfile
 from typing import List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	pyqtSignal, QDir, QRect, QTimer
+	pyqtSignal, QDir, QEvent, QObject, QRect, QTimer
+)
+from PyQt5.QtGui import (
+	QMouseEvent
 )
 from PyQt5.QtWidgets import (
 	QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
@@ -47,7 +50,7 @@ else:
 
 class MainWindow(QMainWindow): 
 
-	width_percentage = 0.7
+	width_height_ratio = 1.5
 	height_precentage = 0.8
 
 	group_percentage = 0.1
@@ -66,10 +69,9 @@ class MainWindow(QMainWindow):
 		): 
 		super().__init__(parent)
 		self.setWindowTitle("Score Record Tool")
-		self.resize(
-			int(available_geometry.width() * self.width_percentage), 
-			int(available_geometry.height() * self.height_precentage)
-		)
+		height = int(available_geometry.height() * self.height_precentage)
+		width = int(height * self.width_height_ratio)
+		self.resize(width, height)
 		centerDialog(self, parent)
 
 		self.project_base_dir = project_base_dir
@@ -149,6 +151,8 @@ class MainWindow(QMainWindow):
 		self.sort_type_box.currentIndexChanged.connect(self.refresh)
 		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
 		self.random_widget.random_button.clicked.connect(self.randomRolling)
+
+		self.installEventFilter(self)
 
 	def _chooseResourceFile(self) -> bool: 
 		msg_box = QMessageBox(self)
@@ -414,8 +418,18 @@ class MainWindow(QMainWindow):
 					)
 				music_list = pd.concat([music_list, appendant])
 
-		music_list = music_list[(music_list["playLevel"] >= level_range[0]) & (music_list["playLevel"] <= level_range[1])]
+		music_list: pd.DataFrame = music_list[(music_list["playLevel"] >= level_range[0]) & (music_list["playLevel"] <= level_range[1])]
 		music_list.reset_index(drop=True, inplace=True)
+
+		if music_list.empty: 
+			msg_box = QMessageBox(self)
+			msg_box.setIcon(QMessageBox.Icon.Warning)
+			msg_box.setWindowTitle("No Music Found")
+			msg_box.setText("No music found matching the specified criteria. Please adjust your settings and try again. ")
+			msg_box.setStandardButtons(QMessageBox.StandardButton.Ok)
+			centerDialog(msg_box, self)
+			msg_box.exec_()
+			return
 
 		selected_row = music_list.sample(n=1).iloc[0]
 		selected_music_id = selected_row["id_musics"]
@@ -450,3 +464,9 @@ class MainWindow(QMainWindow):
 			except Exception as e: 
 				logging.warning("Failed to load config file: %s. Using default config.", e)
 
+	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.MouseButtonPress: 
+			assert isinstance(event, QMouseEvent)
+			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
+				self.search_box.clearFocus()
+		return super().eventFilter(watched, event)

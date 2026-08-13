@@ -100,7 +100,7 @@ class OrdinaryButton(DifficultyButton):
 		painter.save()
 		painter.setPen(QPen())
 		html_text = (
-			"<div style='text-align: center; font-size: {fn_size}px; font-family: {fn_family}; "
+			"<div style='text-align: center; font-size: {fn_size}pt; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span>{content}</span></div>"
 		).format(
 			fn_size = int(self.btn_size * self.font_size_percantage), 
@@ -179,7 +179,7 @@ class AppendButton(DifficultyButton):
 		html_text = (
 			"<div style='text-align: center; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span style="
-			"'font-size: {ruby_size}px'>APD</span><br><span style='font-size: {fn_size}px'>{content}</span></div>"
+			"'font-size: {ruby_size}pt'>APD</span><br><span style='font-size: {fn_size}pt'>{content}</span></div>"
 		).format(
 			fn_size = int(self.btn_size * self.font_size_percantage), 
 			ruby_size = int(self.btn_size * self.font_size_percantage * self.ruby_percentage),

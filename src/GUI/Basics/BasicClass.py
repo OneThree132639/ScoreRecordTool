@@ -4,7 +4,7 @@ from PyQt5.QtCore import (
 	pyqtSignal, QEvent, QPoint, QRect, QRectF, Qt
 )
 from PyQt5.QtGui import (
-	QBrush, QColor, QFont, QMouseEvent, QPainter, QPaintEvent, QPen, QPixmap, 
+	QBrush, QColor, QFocusEvent, QFont, QMouseEvent, QPainter, QPaintEvent, QPen, QPixmap, 
 	QRegion, QTextDocument, QTextOption
 )
 from PyQt5.QtWidgets import (
@@ -169,7 +169,7 @@ class OptionColumn(QWidget):
 		painter.setPen(QPen())
 		color = self.enabled_color if self.isEnabled() else self.disabled_color
 		html_text = (
-			"<span style=\"font-size: {}px; font-family: FOT-RodinNTLG Pro; color: {}; \">"
+			"<span style=\"font-size: {}pt; font-family: FOT-RodinNTLG Pro; color: {}; \">"
 			"{}</span>"
 		).format(self.font_size, color, self.column_text) 
 		self.document.setHtml(html_text)
@@ -317,6 +317,8 @@ class OptionLineEdit(QLineEdit):
 	fixed_height_percentage = 0.8
 	fixed_width_percentage = 1.6
 
+	focused_out = pyqtSignal()
+
 	def __init__(self, fixed_height: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.fixed_height = int(fixed_height * self.fixed_height_percentage)
@@ -345,6 +347,10 @@ class OptionLineEdit(QLineEdit):
 			"\tborder: 1px solid skyblue; \n"
 			"}"
 		)
+
+	def focusOutEvent(self, event: QFocusEvent) -> None: 
+		super().focusOutEvent(event)
+		self.focused_out.emit()
 
 class OptionCheckBoxIndicator(BasicButton): 
 

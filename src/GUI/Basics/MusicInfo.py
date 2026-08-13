@@ -176,7 +176,7 @@ class OrdinaryLabel(LevelLabel):
 		painter.save()
 		painter.setPen(QPen())
 		html_text = (
-			"<div style='text-align: center; font-size: {fn_size}px; font-family: {fn_family}; "
+			"<div style='text-align: center; font-size: {fn_size}pt; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span>{content}</span></div>"
 		).format(
 			fn_size = int(self.label_size * self.font_size_percantage * self.special_percentage), 
@@ -259,7 +259,7 @@ class AppendLabel(LevelLabel):
 		html_text = (
 			"<div style='text-align: center; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span style="
-			"'font-size: {ruby_size}px'>APD</span><br><span style='font-size: {fn_size}px'>{content}</span></div>"
+			"'font-size: {ruby_size}pt'>APD</span><br><span style='font-size: {fn_size}pt'>{content}</span></div>"
 		).format(
 			fn_size = int(basic_font_size), 
 			ruby_size = int(basic_font_size * self.ruby_percentage),

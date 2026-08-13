@@ -7,11 +7,11 @@ from PyQt5.QtWidgets import (
 
 class SearchBox(QLineEdit): 
 
-	def __init__(self, pixel_size: int, text: str="", parent=None): 
+	def __init__(self, point_size: int, text: str="", parent=None): 
 		super().__init__(parent)
 		self.setText(text)
 		self.setPlaceholderText("曲名・クリエイター名から探す")
 
 		font = self.font()
-		font.setPointSize(pixel_size)
+		font.setPointSize(point_size)
 		self.setFont(font)

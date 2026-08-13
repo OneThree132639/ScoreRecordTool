@@ -1,12 +1,14 @@
+import logging
 import numpy as np
 
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PyQt5.QtCore import (
-	pyqtSignal, Qt
+	pyqtSignal, QEvent, QObject, Qt
 )
 from PyQt5.QtGui import (
-	QColor, QFont, QImage, QIntValidator, QPainter, QPaintEvent, QPalette, QPixmap
+	QColor, QFont, QImage, QIntValidator, QMouseEvent, 
+	QPainter, QPaintEvent, QPalette, QPixmap
 )
 from PyQt5.QtWidgets import (
 	QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
@@ -97,10 +99,10 @@ class RandomLevelWidget(QWidget):
 		self.min_level.setText(str(min_level))
 		self.max_level.setText(str(max_level))
 
-		self.min_level.editingFinished.connect(self._onMinLevelFinished)
-		self.max_level.editingFinished.connect(self._onMaxLevelFinished)
+		self.min_level.focused_out.connect(self._onMinLevelFinished)
+		self.max_level.focused_out.connect(self._onMaxLevelFinished)
 
-	def _onMinLevelFinished(self) -> None:
+	def _onMinLevelFinished(self) -> None: 
 		text = self.min_level.text()
 		if text == "": 
 			self.min_level.setText(str(self.valid_min_level))
@@ -108,9 +110,9 @@ class RandomLevelWidget(QWidget):
 		try: 
 			level = int(text)
 			if level < self.valid_min_level: 
-				self.min_level.setText(str(self.valid_max_level))
-			elif level > int(self.max_level.text()): 
-				self.min_level.setText(self.max_level.text())
+				self.min_level.setText(str(self.valid_min_level))
+			elif level > max(int(self.max_level.text()), self.valid_max_level): 
+				self.min_level.setText(str(min(int(self.max_level.text()), self.valid_max_level)))
 		except ValueError: 
 			self.min_level.setText(str(self.valid_min_level))
 
@@ -123,8 +125,8 @@ class RandomLevelWidget(QWidget):
 			level = int(text)
 			if level > self.valid_max_level: 
 				self.max_level.setText(str(self.valid_max_level))
-			elif level < int(self.min_level.text()): 
-				self.max_level.setText(self.min_level.text())
+			elif level < min(int(self.min_level.text()), self.valid_min_level): 
+				self.max_level.setText(str(min(int(self.min_level.text()), self.valid_min_level)))
 		except ValueError: 
 			self.max_level.setText(str(self.valid_max_level))
 
@@ -193,6 +195,8 @@ class RandomDialog(QDialog):
 
 		self.song_range.button_clicked.connect(self._onSongRangeButtonClicked)
 
+		self.installEventFilter(self)
+
 	def getCurrentOptions(self) -> Tuple[str, List[str], Tuple[int, int]]: 
 		return (
 			self.song_range.getCurrentOption(), 
@@ -223,6 +227,14 @@ class RandomDialog(QDialog):
 		self._onSongRangeButtonClicked(self.song_range.getCurrentOption())
 		return super().exec()
 
+	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.MouseButtonPress: 
+			assert isinstance(event, QMouseEvent)
+			if not self.level_widget.min_level.geometry().contains(self.mapFromGlobal(event.globalPos())): 
+				self.level_widget.min_level.clearFocus()
+			if not self.level_widget.max_level.geometry().contains(self.mapFromGlobal(event.globalPos())): 
+				self.level_widget.max_level.clearFocus()
+		return super().eventFilter(watched, event)
 
 class RandomWidget(QWidget): 
 
