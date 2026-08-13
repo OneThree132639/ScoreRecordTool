@@ -189,7 +189,7 @@ class AppendButton(DifficultyButton):
 		painter.restore()
 
 		painter.save()
-		font_size = int(self.btn_size * self.font_size_percantage * self.ruby_percentage)
+		font_size = int(self.btn_size * self.font_size_percentage * self.ruby_percentage)
 		font = QFont()
 		font.setFamily(self.config[self._current_state.value]["font-family"])
 		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
@@ -233,6 +233,7 @@ class DifficultyButtonSet(QWidget):
 
 		self.button_group = QButtonGroup(self)
 		self.my_layout = QGridLayout(self)
+		self.my_layout.setContentsMargins(self.padding, self.padding, self.padding, self.padding)
 		self.setLayout(self.my_layout)
 
 		self.btn_list: List[DifficultyButton] = [
@@ -244,7 +245,7 @@ class DifficultyButtonSet(QWidget):
 			btn.setCheckable(True)
 			btn.setEnabled(levels[idx] is not None)
 			self.button_group.addButton(btn)
-			self.my_layout.addWidget(btn, 0, idx)
+			self.my_layout.addWidget(btn, 0, idx, Qt.AlignmentFlag.AlignVCenter)
 
 		self.button_group.setExclusive(True)
 		self.easy_button.setChecked(True)

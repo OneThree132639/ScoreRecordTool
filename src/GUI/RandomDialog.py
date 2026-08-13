@@ -238,6 +238,7 @@ class RandomDialog(QDialog):
 
 class RandomWidget(QWidget): 
 
+	padding = 5
 	option_changed = pyqtSignal()
 
 	def __init__(self, init_height: int, 
@@ -255,7 +256,8 @@ class RandomWidget(QWidget):
 		self.my_layout.addWidget(self.setting_button)
 		self.my_layout.setSpacing(50)
 		self.setLayout(self.my_layout)
-		self.setFixedHeight(self.init_height)
+		self.setFixedHeight(self.init_height + 2 * self.padding)
+		self.my_layout.setContentsMargins(self.padding, self.padding, self.padding, self.padding)
 
 		palette = self.palette()
 		color = QColor("#5c5c7d")

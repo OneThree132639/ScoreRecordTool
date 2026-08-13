@@ -249,7 +249,7 @@ class AppendLabel(LevelLabel):
 		painter.drawEllipse(scaled_rect)
 
 		scale = self.special_append_percentage if self.is_special else 1
-		basic_font_size = self.label_size * self.font_size_percantage * self.special_percentage * scale
+		basic_font_size = self.label_size * self.font_size_percentage * self.special_percentage * scale
 
 		painter.save()
 		font_size = int(basic_font_size)

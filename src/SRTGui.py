@@ -376,15 +376,15 @@ class MainWindow(QMainWindow):
 		vocal_list = self.data_manager.vocal_table
 		assert vocal_list is not None
 
+		self.filter_button.setNormalState(search_content, filter_options)
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.switchList(
 			sort_type, group, difficulty, search_content, filter_options, 
 			music_list, vocal_list, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
 			self.data_manager.getCoverArray, music_id
 		)
-		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
-		self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
-		self.filter_button.setNormalState(search_content, filter_options)
 		self.display_card.pause()
 		self.display_card.resume()
 

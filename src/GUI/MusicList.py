@@ -667,8 +667,7 @@ class MusicList(QListWidget):
 
 	def setMusicId(self, music_id: int) -> None: 
 		self._current_index = self._fromMusicIdToIndex(music_id)
-		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
-		self._onScrollStop()
+		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index), False)
 		
 
 class MusicListWidget(QStackedWidget): 
