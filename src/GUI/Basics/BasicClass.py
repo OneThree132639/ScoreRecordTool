@@ -169,7 +169,7 @@ class OptionColumn(QWidget):
 		painter.setPen(QPen())
 		color = self.enabled_color if self.isEnabled() else self.disabled_color
 		html_text = (
-			"<span style=\"font-size: {}pt; font-family: FOT-RodinNTLG Pro; color: {}; \">"
+			"<span style=\"font-size: {}px; font-family: FOT-RodinNTLG Pro; color: {}; \">"
 			"{}</span>"
 		).format(self.font_size, color, self.column_text) 
 		self.document.setHtml(html_text)

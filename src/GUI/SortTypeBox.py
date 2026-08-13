@@ -23,7 +23,7 @@ class SortTypeBox(QComboBox):
 		self.setCurrentText(default)
 
 		font = self.font()
-		font.setPointSize(init_height)
+		font.setPixelSize(init_height)
 		self.setFont(font)
 
 

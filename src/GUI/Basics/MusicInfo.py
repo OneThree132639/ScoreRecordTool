@@ -30,7 +30,7 @@ class MarqueeLabel(QLabel):
 
 		font = QFont()
 		font.setFamily(font_name)
-		font.setPointSize(font_size)
+		font.setPixelSize(font_size)
 		self.setFont(font)
 
 		self.offset = 0
@@ -127,7 +127,7 @@ class LevelLabel(QLabel):
 		font = QFont()
 		font.setFamily("FOT-RodinNTLG Pro")
 		font.setWeight(QFont.Weight.Black)
-		font.setPointSizeF(self.label_size * self.special_text_font_size_percentage)
+		font.setPixelSize(int(self.label_size * self.special_text_font_size_percentage))
 		path.addText(QPointF(0, 0), font, "楽曲Lv.")
 
 		bounding_rect = path.boundingRect()
@@ -176,7 +176,7 @@ class OrdinaryLabel(LevelLabel):
 		painter.save()
 		painter.setPen(QPen())
 		html_text = (
-			"<div style='text-align: center; font-size: {fn_size}pt; font-family: {fn_family}; "
+			"<div style='text-align: center; font-size: {fn_size}px; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span>{content}</span></div>"
 		).format(
 			fn_size = int(self.label_size * self.font_size_percantage * self.special_percentage), 
@@ -200,7 +200,7 @@ class OrdinaryLabel(LevelLabel):
 		self.document.setTextWidth(self.width())
 		doc_size = self.document.size()
 		doc_x = (rect.width() - doc_size.width()) / 2
-		doc_y = (rect.height() - doc_size.height()) / 2
+		doc_y = (rect.height() - doc_size.height()) / 2 - 50
 		target_rect = QRectF(doc_x, doc_y, doc_size.width(), doc_size.height())
 		painter.translate(target_rect.topLeft())
 		self.document.drawContents(painter, QRectF(0, 0, target_rect.width(), target_rect.height()))
@@ -259,7 +259,7 @@ class AppendLabel(LevelLabel):
 		html_text = (
 			"<div style='text-align: center; font-family: {fn_family}; "
 			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span style="
-			"'font-size: {ruby_size}pt'>APD</span><br><span style='font-size: {fn_size}pt'>{content}</span></div>"
+			"'font-size: {ruby_size}px'>APD</span><br><span style='font-size: {fn_size}px'>{content}</span></div>"
 		).format(
 			fn_size = int(basic_font_size), 
 			ruby_size = int(basic_font_size * self.ruby_percentage),
