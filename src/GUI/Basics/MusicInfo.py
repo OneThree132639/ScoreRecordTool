@@ -211,8 +211,10 @@ class AppendLabel(LevelLabel):
 
 	ruby_percentage = 0.6
 	font_size_percantage = 0.35
-	text_down_percentage = 0.05
+	text_down_percentage = {True: 0.2, False: 0.15}
+	ruby_up_percentage = {True: 0.1, False: 0.15}
 	special_append_percentage = 0.95
+
 
 	def __init__(self, level: int, is_special: bool, label_size: int, 
 			difficulty: Difficulty, config: Dict[str, Any], 
@@ -248,39 +250,47 @@ class AppendLabel(LevelLabel):
 
 		scale = self.special_append_percentage if self.is_special else 1
 		basic_font_size = self.label_size * self.font_size_percantage * self.special_percentage * scale
-		painter.save()
-		painter.setPen(QPen())
-		html_text = (
-			"<div style='text-align: center; font-family: {fn_family}; "
-			"font-weight: {fn_weight}; font-style: {fn_style}; color: {color}'><span style="
-			"'font-size: {ruby_size}pt'>APD</span><br><span style='font-size: {fn_size}pt'>{content}</span></div>"
-		).format(
-			fn_size = int(basic_font_size), 
-			ruby_size = int(basic_font_size * self.ruby_percentage),
-			fn_family = self.config["font-family"], 
-			fn_weight = self.config["font-weight"], 
-			fn_style = self.config["font-style"], 
-			content = self.level, 
-			color = self.config["font-color"]
-		)
-		self.document.setHtml(html_text)
-		cursor = QTextCursor(self.document)
-		while True: 
-			block_format = cursor.blockFormat()
-			block_format.setTopMargin(0)
-			block_format.setBottomMargin(0)
-			block_format.setLineHeight(50, QTextBlockFormat.LineHeightTypes.ProportionalHeight)
-			cursor.setBlockFormat(block_format)
-			if not cursor.movePosition(QTextCursor.MoveOperation.NextBlock): 
-				break
 
-		self.document.setTextWidth(self.width())
-		doc_size = self.document.size()
-		down_offset = self.text_down_percentage * self.label_size if self.is_special else 0
-		doc_x = (rect.width() - doc_size.width()) / 2
-		doc_y = (rect.height() - doc_size.height()) / 2 + down_offset
-		painter.translate(doc_x, doc_y)
-		self.document.drawContents(painter)
+		painter.save()
+		font_size = int(basic_font_size)
+		font = QFont()
+		font.setFamily(self.config["font-family"])
+		font.setWeight(strToFontWeight(self.config["font-weight"]))
+		font.setStyle(strToFontStyle(self.config["font-style"]))
+		font.setPixelSize(font_size)
+		metrics = QFontMetrics(font)
+		text_height = metrics.height()
+		text_width = metrics.width(str(self.level))
+		text_rect = QRect(
+			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
+			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 + scaled_rect.height() * self.text_down_percentage[self.is_special]),
+			text_width,
+			text_height
+		)
+		painter.setFont(font)
+		painter.setPen(QPen(QColor(self.config["font-color"])))
+		painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, str(self.level))
+		painter.restore()
+
+		painter.save()
+		font_size = int(basic_font_size * self.ruby_percentage)
+		font = QFont()
+		font.setFamily(self.config["font-family"])
+		font.setWeight(strToFontWeight(self.config["font-weight"]))
+		font.setStyle(strToFontStyle(self.config["font-style"]))
+		font.setPixelSize(font_size)
+		metrics = QFontMetrics(font)
+		text_height = metrics.height()
+		text_width = metrics.width("APD")
+		text_rect = QRect(
+			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
+			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 - scaled_rect.height() * self.ruby_up_percentage[self.is_special]),
+			text_width,
+			text_height
+		)
+		painter.setFont(font)
+		painter.setPen(QPen(QColor(self.config["font-color"])))
+		painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, "APD")
 		painter.restore()
 
 		if self.is_special: 
