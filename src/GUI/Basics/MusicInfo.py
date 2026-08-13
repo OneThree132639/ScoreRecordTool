@@ -159,7 +159,7 @@ class LevelLabel(QLabel):
 
 class OrdinaryLabel(LevelLabel): 
 
-	font_size_percantage = 0.43
+	font_size_percentage = 0.43
 
 	def __init__(self, level: int, is_special: bool, label_size: int, 
 			difficulty: Difficulty, config: Dict[str, str], 
@@ -180,7 +180,7 @@ class OrdinaryLabel(LevelLabel):
 		painter.drawEllipse(scaled_rect)
 
 		painter.save()
-		font_size = int(self.label_size * self.font_size_percantage * self.special_percentage)
+		font_size = int(self.label_size * self.font_size_percentage * self.special_percentage)
 		font = QFont()
 		font.setFamily(self.config["font-family"])
 		font.setWeight(strToFontWeight(self.config["font-weight"]))
@@ -210,7 +210,7 @@ class OrdinaryLabel(LevelLabel):
 class AppendLabel(LevelLabel): 
 
 	ruby_percentage = 0.6
-	font_size_percantage = 0.35
+	font_size_percentage = 0.35
 	text_down_percentage = {True: 0.2, False: 0.15}
 	ruby_up_percentage = {True: 0.1, False: 0.15}
 	special_append_percentage = 0.95
@@ -249,7 +249,7 @@ class AppendLabel(LevelLabel):
 		painter.drawEllipse(scaled_rect)
 
 		scale = self.special_append_percentage if self.is_special else 1
-		basic_font_size = self.label_size * self.font_size_percantage * self.special_percentage * scale
+		basic_font_size = self.label_size * self.font_size_percentage * self.special_percentage * scale
 
 		painter.save()
 		font_size = int(basic_font_size)

@@ -74,7 +74,7 @@ class DifficultyButton(BasicButton):
 
 class OrdinaryButton(DifficultyButton): 
 
-	font_size_percantage = 0.5
+	font_size_percentage = 0.5
 
 	def __init__(self, size: int, difficulty: Difficulty, level: int, 
 			config: Dict[str, Dict[str, str]], parent: Optional[QWidget]=None
@@ -100,7 +100,7 @@ class OrdinaryButton(DifficultyButton):
 		painter.drawEllipse(scaled_rect)
 
 		painter.save()
-		font_size = int(self.btn_size * self.font_size_percantage)
+		font_size = int(self.btn_size * self.font_size_percentage)
 		font = QFont()
 		font.setFamily(self.config[self._current_state.value]["font-family"])
 		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
@@ -125,7 +125,7 @@ class OrdinaryButton(DifficultyButton):
 class AppendButton(DifficultyButton): 
 
 	ruby_percentage = 0.6
-	font_size_percantage = 0.45
+	font_size_percentage = 0.45
 	ruby_up_percentage = 0.2
 	text_down_percentage = 0.15
 
@@ -168,7 +168,7 @@ class AppendButton(DifficultyButton):
 		painter.drawEllipse(scaled_rect)
 
 		painter.save()
-		font_size = int(self.btn_size * self.font_size_percantage)
+		font_size = int(self.btn_size * self.font_size_percentage)
 		font = QFont()
 		font.setFamily(self.config[self._current_state.value]["font-family"])
 		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
@@ -189,7 +189,7 @@ class AppendButton(DifficultyButton):
 		painter.restore()
 
 		painter.save()
-		font_size = int(self.btn_size * self.font_size_percantage * self.ruby_percentage)
+		font_size = int(self.btn_size * self.font_size_percentage * self.ruby_percentage)
 		font = QFont()
 		font.setFamily(self.config[self._current_state.value]["font-family"])
 		font.setWeight(strToFontWeight(self.config[self._current_state.value]["font-weight"]))
