@@ -77,7 +77,6 @@ if __name__ == "__main__":
 	available_geometry = screen.availableGeometry()
 	font = QFont()
 	font.setFamily("nintendo_NTLG-DB_001")
-	font.setPointSize(12)
 	font.setBold(False)
 	app.setFont(font)
 	load_fonts(font_dir)
