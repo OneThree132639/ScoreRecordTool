@@ -364,7 +364,7 @@ class MusicList(QListWidget):
 		self.setFlow(QListWidget.Flow.TopToBottom)
 		self.setSelectionMode(QListWidget.SelectionMode.NoSelection)
 		self.setUniformItemSizes(False)
-		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
 
 		self.music_list = pd.DataFrame()

@@ -1,13 +1,14 @@
+import logging
 import numpy as np
 
 from scipy.ndimage import binary_erosion
 from typing import Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	Qt, QSize
+	pyqtSignal, Qt, QRect, QRectF, QSize
 )
 from PyQt5.QtGui import (
-	QColor, QImage, QPainter, QPaintEvent, 
+	QColor, QFont, QFontMetrics, QImage, QPainter, QPaintEvent, 
 	QPalette, QPen, QPixmap, QResizeEvent, QTextDocument, 
 	QTextOption
 )
@@ -29,6 +30,8 @@ class GroupButton(BasicButton):
 
 	disabled_color = "#808080"
 
+	size_changed = pyqtSignal()
+
 	def __init__(self, group: Union[Group, str], icon_size: int, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.my_group = group
@@ -48,6 +51,14 @@ class GroupButton(BasicButton):
 			return self.my_group == value
 		return False
 
+	def updateSize(self, width: int, height: int) -> None: 
+		self.setFixedSize(width, height)
+		self.size_changed.emit()
+		self.updateGeometry()
+
+	def sizeHint(self) -> QSize: 
+		return QSize(self.width(), self.height())
+
 class UnitButton(GroupButton): 
 
 	unchecked_color = "#FFFFFF"
@@ -60,7 +71,7 @@ class UnitButton(GroupButton):
 		self.pic_size = int(icon_size * self.pic_size_percentage)
 		self.my_mask = mask
 		self.checked_color = checked_color
-		self.setFixedSize(self.pic_size, self.pic_size)
+		self.updateSize(self.pic_size, self.pic_size)
 		self.updateState()
 
 	def _drawBorderOnPixmap(self, pixmap: QPixmap, border_width: int) -> QPixmap: 
@@ -128,43 +139,36 @@ class TextButton(GroupButton):
 	padding_percentage = 0.03
 	short_percentage = 0.20
 	long_percentage = 0.10
-	min_height_percentage = 0.7
+	min_height_percentage = 0.4
+	padding_percentage = 0.03
 
 	def __init__(self, group: Union[Group, str], icon_size: int, text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(group, icon_size, parent)
 		self.my_text = text
+		self.icon_size = icon_size
 		self.min_height = int(icon_size * self.min_height_percentage)
+		self.padding = int(icon_size * self.padding_percentage)
 		self.short_size = int(icon_size * self.short_percentage)
 		self.long_size = int(icon_size * self.long_percentage)
 
-		self.setFixedWidth(self.icon_size)
+		self.updateSize(self.icon_size, self.min_height)
 
 		self.document = QTextDocument()
 		self.document.setDefaultTextOption(QTextOption(Qt.AlignmentFlag.AlignCenter))
 
-	def updateDocument(self) -> None: 
-		padding = int(self.icon_size * self.padding_percentage)
-		available_width = self.width() - 2 * padding
-
-		font_size = self.short_size if len(self.my_text) <= 3 else self.long_size
-		html_text = (
-			"<span style=\"font-size: {}px; font-family: FOT-RodinNTLG Pro; \">{}</span>"
-		).format(font_size, self.my_text)
-		self.document.setHtml(html_text)
-		self.document.setTextWidth(available_width)
-
-		doc_height = self.document.size().height()
-		self.setFixedHeight(min(int(doc_height), self.min_height) + 2 * padding)
-		self.update()
-
-	def setText(self, text: str) -> None: 
-		super().setText("")
-		self.my_text = text
-		self.updateDocument()
-
-	def resizeEvent(self, event: QResizeEvent) -> None: 
-		super().resizeEvent(event)
-		self.updateDocument()
+	def getWrappedLines(self, doc: QTextDocument) -> List[str]: 
+		lines = []
+		block = doc.begin()
+		while block.isValid(): 
+			layout = block.layout()
+			if layout is not None: 
+				for i in range(layout.lineCount()): 
+					line = layout.lineAt(i)
+					start = line.textStart()
+					end = start + line.textLength()
+					lines.append(block.text()[start:end])
+			block = block.next()
+		return lines 
 
 	def paintEvent(self, event: QPaintEvent) -> None: 
 		painter = QPainter(self)
@@ -186,9 +190,29 @@ class TextButton(GroupButton):
 		padding = int(self.icon_size * self.padding_percentage)
 		rect = self.rect().adjusted(padding, padding, -padding, -padding)
 		self.document.setTextWidth(rect.width())
-		painter.translate(rect.topLeft())
-		self.document.drawContents(painter)
-		painter.end()
+		self.document.size()
+		lines = self.getWrappedLines(self.document)
+		font = QFont()
+		font.setPixelSize(font_size)
+		font.setFamily("FOT-RodinNTLG Pro")
+		metrics = QFontMetrics(font)
+		height = metrics.height()
+		leading = metrics.leading() 
+		total_height = len(lines) * height + (len(lines) - 1) * leading + 2 * padding
+		setting_height = max(total_height, self.min_height + 2 * padding)
+		self.updateSize(self.icon_size, setting_height)
+		start = (setting_height - total_height) / 2
+		painter.setPen(QPen(color))
+		painter.setFont(font)
+		painter.setBrush(Qt.BrushStyle.NoBrush)
+		for idx, line in enumerate(lines): 
+			line_width = metrics.boundingRect(line).width()
+			x = (rect.width() - line_width) / 2 + padding
+			y = start + idx * (height + leading) + padding
+			target_rect = QRectF(x, y, line_width, height)
+			painter.drawText(target_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, line)
+
+
 
 
 class GroupButtonSet(QListWidget): 
@@ -246,6 +270,8 @@ class GroupButtonSet(QListWidget):
 			self.addItem(item)
 			self.setItemWidget(item, container)
 
+			btn.size_changed.connect(lambda: self.updateItemSize(item, btn))
+
 			if btn.matchGroup(checked_group): 
 				btn.setChecked(True)
 
@@ -255,6 +281,10 @@ class GroupButtonSet(QListWidget):
 		palette.setColor(QPalette.ColorRole.Base, color)
 		self.setPalette(palette)
 		self.setAutoFillBackground(True)
+
+	def updateItemSize(self, item: QListWidgetItem, btn: GroupButton) -> None: 
+		item.setSizeHint(btn.sizeHint())
+		self.scheduleDelayedItemsLayout()
 
 	def _createCenteredItem(self, button: BasicButton) -> Tuple[QListWidgetItem, QWidget]: 
 		container = QWidget(self)

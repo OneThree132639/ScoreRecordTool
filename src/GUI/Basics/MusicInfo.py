@@ -36,7 +36,7 @@ class MarqueeLabel(QLabel):
 
 		font = QFont()
 		font.setFamily(font_name)
-		font.setPixelSize(font_size)
+		font.setPointSize(font_size)
 		self.setFont(font)
 
 		self.offset = 0
@@ -52,7 +52,7 @@ class MarqueeLabel(QLabel):
 			return
 		
 		metrics = QFontMetrics(self.font())
-		text_width = metrics.horizontalAdvance(self.text())
+		text_width = metrics.boundingRect(self.text()).width()
 
 		if text_width <= self.width(): 
 			self.offset = 0
@@ -74,7 +74,7 @@ class MarqueeLabel(QLabel):
 
 	def _getTextWidth(self) -> int: 
 		metrics = QFontMetrics(self.font())
-		return metrics.horizontalAdvance(self.text())
+		return metrics.boundingRect(self.text()).width()
 
 	def paintEvent(self, event: QPaintEvent) -> None: 
 		painter = QPainter(self)
@@ -133,7 +133,7 @@ class LevelLabel(QLabel):
 		font = QFont()
 		font.setFamily("FOT-RodinNTLG Pro")
 		font.setWeight(QFont.Weight.Black)
-		font.setPixelSize(int(self.label_size * self.special_text_font_size_percentage))
+		font.setPointSizeF(self.label_size * self.special_text_font_size_percentage)
 		path.addText(QPointF(0, 0), font, "楽曲Lv.")
 
 		bounding_rect = path.boundingRect()
@@ -188,7 +188,7 @@ class OrdinaryLabel(LevelLabel):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.width(str(self.level))
+		text_width = metrics.boundingRect(str(self.level)).width()
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2),
@@ -260,7 +260,7 @@ class AppendLabel(LevelLabel):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.width(str(self.level))
+		text_width = metrics.boundingRect(str(self.level)).width()
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 + scaled_rect.height() * self.text_down_percentage[self.is_special]),
@@ -281,7 +281,7 @@ class AppendLabel(LevelLabel):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.width("APD")
+		text_width = metrics.boundingRect("APD").width()
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 - scaled_rect.height() * self.ruby_up_percentage[self.is_special]),
