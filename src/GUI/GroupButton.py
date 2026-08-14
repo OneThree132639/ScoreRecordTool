@@ -5,26 +5,28 @@ from scipy.ndimage import binary_erosion
 from typing import Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	pyqtSignal, Qt, QRect, QRectF, QSize
+	pyqtSignal, QPoint, Qt, QRect, QRectF, QSize
 )
 from PyQt5.QtGui import (
-	QColor, QFont, QFontMetrics, QImage, QPainter, QPaintEvent, 
-	QPalette, QPen, QPixmap, QResizeEvent, QTextDocument, 
+	QBrush, QColor, QFont, QFontMetrics, QImage, QPainter, QPaintEvent, 
+	QPalette, QPen, QPixmap, QTextDocument, 
 	QTextOption
 )
 from PyQt5.QtWidgets import (
 	QButtonGroup, QHBoxLayout, QListWidget, QListWidgetItem, 
-	QWidget
+	QPushButton, QSizePolicy, QVBoxLayout, QWidget
 )
 
 if __package__ is None or __package__ == "": 
 	from Basics.BasicClass import BasicButton
 	from Basics.Enums.ButtonState import ButtonState
 	from Basics.Enums.Group import Group
+	from Basics.PyQt5Assistants.Drawer import drawRect
 else: 
 	from .Basics.BasicClass import BasicButton
 	from .Basics.Enums.ButtonState import ButtonState
 	from .Basics.Enums.Group import Group
+	from .Basics.PyQt5Assistants.Drawer import drawRect
 
 class GroupButton(BasicButton): 
 
@@ -277,7 +279,7 @@ class GroupButtonSet(QListWidget):
 
 		palette = self.palette()
 		color = QColor("#5c5c7d")
-		color.setAlpha(127)
+		color.setAlpha(0)
 		palette.setColor(QPalette.ColorRole.Base, color)
 		self.setPalette(palette)
 		self.setAutoFillBackground(True)
@@ -332,3 +334,193 @@ class GroupButtonSet(QListWidget):
 			elif isinstance(btn.my_group, str) and btn.my_group == value: 
 				btn.setChecked(True)
 				return
+
+class AddGroupButton(QPushButton): 
+
+	rounded_percentage = 0.05
+	icon_percentage = 0.5
+	stroke_percentage = 0.2
+
+	def __init__(self, btn_size: int, parent: Optional[QWidget]=None) -> None: 
+		super().__init__(parent)
+		self.btn_size = btn_size
+		self.icon_size = int(btn_size * self.icon_percentage)
+		self.setFixedSize(self.btn_size, self.btn_size)
+
+	def paintEvent(self, event: QPaintEvent) -> None: 
+		painter = QPainter(self)
+		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+		color = QColor(255, 255, 255, 255)
+		painter.setPen(Qt.PenStyle.NoPen)
+		painter.setBrush(QBrush(color))
+		rounded_radius = int(self.btn_size * self.rounded_percentage)
+		painter.drawRoundedRect(self.rect(), rounded_radius, rounded_radius)
+
+		painter.save()
+		color = QColor(0, 0, 0, 255) if self.isEnabled() else QColor(128, 128, 128, 255)
+		pen = QPen()
+		pen.setColor(color)
+		pen.setWidth(int(self.btn_size * self.stroke_percentage))
+		painter.setPen(pen)
+		painter.setBrush(Qt.BrushStyle.NoBrush)
+		center = QPoint(self.width() // 2, self.height() // 2)
+		side = self.icon_size // 2
+		p11 = center + QPoint(-side, 0)
+		p12 = center + QPoint(side, 0)
+		painter.drawLine(p11, p12)
+		p21 = center + QPoint(0, -side)
+		p22 = center + QPoint(0, side)
+		painter.drawLine(p21, p22)
+		painter.restore()
+		painter.end()
+
+class SubGroupButton(QPushButton): 
+
+	rounded_percentage = 0.05
+	icon_percentage = 0.5
+	stroke_percentage = 0.2
+
+	def __init__(self, btn_size: int, parent: Optional[QWidget]=None) -> None: 
+		super().__init__(parent)
+		self.btn_size = btn_size
+		self.icon_size = int(btn_size * self.icon_percentage)
+		self.setFixedSize(self.btn_size, self.btn_size)
+
+	def paintEvent(self, event: QPaintEvent) -> None: 
+		painter = QPainter(self)
+		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+		color = QColor(255, 255, 255, 255)
+		painter.setPen(Qt.PenStyle.NoPen)
+		painter.setBrush(QBrush(color))
+		rounded_radius = int(self.btn_size * self.rounded_percentage)
+		painter.drawRoundedRect(self.rect(), rounded_radius, rounded_radius)
+
+		painter.save()
+		color = QColor(0, 0, 0, 255) if self.isEnabled() else QColor(128, 128, 128, 255)
+		pen = QPen()
+		pen.setColor(color)
+		pen.setWidth(int(self.btn_size * self.stroke_percentage))
+		painter.setPen(pen)
+		painter.setBrush(Qt.BrushStyle.NoBrush)
+		center = QPoint(self.width() // 2, self.height() // 2)
+		side = self.icon_size // 2
+		p11 = center + QPoint(-side, 0)
+		p12 = center + QPoint(side, 0)
+		painter.drawLine(p11, p12)
+		painter.restore()
+		painter.end()
+
+class SettingGroupButton(QPushButton): 
+
+	rounded_percentage = 0.05
+	icon_percentage = 0.8
+	stroke_percentage = 0.1
+
+	def __init__(self, btn_size: int, icon_array: np.ndarray, parent: Optional[QWidget]=None) -> None: 
+		super().__init__(parent)
+		self.btn_size = btn_size
+		self.icon_size = int(btn_size * self.icon_percentage)
+		self.setFixedSize(self.btn_size, self.btn_size)
+		self.my_mask = icon_array
+		self.enabled_pixmap = self._generatePixmap(QColor(0, 0, 0, 255))
+		self.disabled_pixmap = self._generatePixmap(QColor(128, 128, 128, 255))
+
+	def _generatePixmap(self, color: QColor) -> QPixmap: 
+		rgba_array = np.zeros((self.my_mask.shape[0], self.my_mask.shape[1], 4), dtype=np.uint8)
+
+		rgba_array[self.my_mask, 0] = color.red()
+		rgba_array[self.my_mask, 1] = color.green()
+		rgba_array[self.my_mask, 2] = color.blue()
+		rgba_array[self.my_mask, 3] = color.alpha()
+
+		image = QImage( 
+			rgba_array.data, rgba_array.shape[1], rgba_array.shape[0], # type: ignore
+			rgba_array.shape[1]*4, QImage.Format.Format_RGBA8888
+		) 
+		pixmap = QPixmap.fromImage(image.copy())
+
+		pixmap = pixmap.scaled(self.icon_size, self.icon_size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+		return pixmap
+
+	def paintEvent(self, event: QPaintEvent) -> None: 
+		painter = QPainter(self)
+		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+		color = QColor(255, 255, 255, 255)
+		painter.setPen(Qt.PenStyle.NoPen)
+		painter.setBrush(QBrush(color))
+		rounded_radius = int(self.btn_size * self.rounded_percentage)
+		painter.drawRoundedRect(self.rect(), rounded_radius, rounded_radius)
+
+		painter.save()
+		target_rect = QRectF(
+			(self.width() - self.icon_size) / 2, (self.height() - self.icon_size) / 2, 
+			self.icon_size, self.icon_size
+		)
+		painter.drawPixmap(
+			target_rect.topLeft(), 
+			self.enabled_pixmap if self.isEnabled() else self.disabled_pixmap, 
+		)
+		painter.restore()
+		painter.end()
+
+class GroupButtonWidget(QWidget): 
+
+	button_size_percentage = 0.30
+	manage_height_percentage = 0.50
+	padding_percentage = 0.05
+
+	def __init__(self, 
+			btn_size: int, group_masks: np.ndarray, setting_mask: np.ndarray, 
+			btn_config: Dict[str, Dict[str, str]], checked_group: Union[int, str]=0, 
+			parent: Optional[QWidget]=None
+		) -> None: 
+		super().__init__(parent)
+		self.group_button_set = GroupButtonSet(btn_size, group_masks, btn_config, checked_group, self)
+
+		self.manage_widget = QWidget(self) 
+		self.manage_layout = QHBoxLayout(self.manage_widget)
+		self.add_button = AddGroupButton(int(btn_size * self.button_size_percentage), self.manage_widget)
+		self.sub_button = SubGroupButton(int(btn_size * self.button_size_percentage), self.manage_widget)
+		self.setting_button = SettingGroupButton(int(btn_size * self.button_size_percentage), setting_mask, self.manage_widget)
+		self.manage_widget.setFixedHeight(int(btn_size * self.manage_height_percentage))
+		self.manage_widget.setLayout(self.manage_layout)
+		self.manage_layout.addStretch()
+		self.manage_layout.addWidget(self.add_button)
+		self.manage_layout.addStretch()
+		self.manage_layout.addWidget(self.sub_button)
+		self.manage_layout.addStretch()
+		self.manage_layout.addWidget(self.setting_button)
+		self.manage_layout.addStretch()
+		self.manage_layout.setSpacing(1)
+		self.manage_layout.setContentsMargins(0, 0, 0, 0)
+		self.manage_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+		self.my_layout = QVBoxLayout(self)
+		self.setLayout(self.my_layout)
+		self.my_layout.addWidget(self.group_button_set, Qt.AlignmentFlag.AlignHCenter)
+		self.my_layout.addWidget(self.manage_widget, Qt.AlignmentFlag.AlignHCenter)
+		self.my_layout.setContentsMargins(0, 0, 0, 0)
+
+		padding = int(btn_size * self.padding_percentage)
+		self.setFixedWidth(btn_size + 2 * padding)
+
+		palette = self.palette()
+		color = QColor("#5c5c7d")
+		color.setAlpha(127)
+		palette.setColor(QPalette.ColorRole.Background, color)
+		self.setPalette(palette)
+		self.setAutoFillBackground(True)
+
+		self.add_button.clicked.connect(lambda: logging.debug("add button clicked. "))
+		self.sub_button.clicked.connect(lambda: logging.debug("sub button clicked. "))
+		self.setting_button.clicked.connect(lambda: logging.debug("setting button clicked. "))
+
+	def getCurrentGroup(self) -> Union[Group, str]: 
+		return self.group_button_set.getCurrentGroup()
+
+	def getCurrentGroupConfig(self) -> Union[int, str]: 
+		return self.group_button_set.getCurrentGroupConfig()

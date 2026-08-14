@@ -14,7 +14,8 @@ from PyQt5.QtGui import (
 	QMouseEvent
 )
 from PyQt5.QtWidgets import (
-	QFileDialog, QHBoxLayout, QMainWindow, QMessageBox, QVBoxLayout, QWidget
+	QDialog, QFileDialog, QHBoxLayout, QMainWindow, 
+	QMessageBox, QVBoxLayout, QWidget
 )
 
 if __package__ is None or __package__ == "": 
@@ -27,7 +28,7 @@ if __package__ is None or __package__ == "":
 	from GUI.Dialog import MessageObject, ProgressObject, UpdateController
 	from GUI.DifficultyButton import DifficultyButtonSet
 	from GUI.FilterDialog import FilterButton
-	from GUI.GroupButton import GroupButtonSet
+	from GUI.GroupButton import GroupButtonSet, GroupButtonWidget
 	from GUI.MusicList import DisplayCard, MusicListWidget
 	from GUI.RandomDialog import RandomWidget
 	from GUI.SearchBox import SearchBox
@@ -42,11 +43,36 @@ else:
 	from .GUI.Dialog import MessageObject, ProgressObject, UpdateController
 	from .GUI.DifficultyButton import DifficultyButtonSet
 	from .GUI.FilterDialog import FilterButton
-	from .GUI.GroupButton import GroupButtonSet
+	from .GUI.GroupButton import GroupButtonSet, GroupButtonWidget
 	from .GUI.MusicList import DisplayCard, MusicListWidget
 	from .GUI.RandomDialog import RandomWidget
 	from .GUI.SearchBox import SearchBox
 	from .GUI.SortTypeBox import SortTypeBox
+
+class CustomListDialog(QDialog): 
+
+	width_height_ratio = 1.5
+	height_precentage = 0.8
+
+	def __init__(self, available_geometry: QRect, title: str, parent: Optional[QWidget]=None) -> None: 
+		super().__init__(parent)
+		self.setWindowTitle(title)
+		height = int(available_geometry.height() * self.height_precentage)
+		width = int(height * self.width_height_ratio)
+		self.resize(width, height)
+		centerDialog(self, parent)
+		self.setModal(True)
+
+		self.left_layout = QVBoxLayout()
+		self.middle_layout = QVBoxLayout()
+		self.right_layout = QVBoxLayout()
+		self.rightup_layout = QHBoxLayout()
+		self.rightmiddle_layout = QVBoxLayout()
+		self.rightdown_layout = QHBoxLayout()
+		self.my_layout = QHBoxLayout(self)
+		self.setLayout(self.my_layout)
+		
+
 
 class MainWindow(QMainWindow): 
 
@@ -60,6 +86,7 @@ class MainWindow(QMainWindow):
 	sort_type_box_height_percentage = 0.025
 	diff_button_size_percentage = 0.07
 	random_height_percentage = 0.07
+
 	update_done = pyqtSignal()
 
 	def __init__(self, available_geometry: QRect, 
@@ -86,21 +113,23 @@ class MainWindow(QMainWindow):
 			self._chooseResourceFile
 		)
 
-		main_widget = QWidget(self)
+		self.main_widget = QWidget(self)
 		self.left_layout = QVBoxLayout()
 		self.middle_layout = QVBoxLayout()
 		self.right_layout = QVBoxLayout()
 		self.rightup_layout = QHBoxLayout()
 		self.rightmiddle_layout = QVBoxLayout()
 		self.rightdown_layout = QHBoxLayout()
-		self.my_layout = QHBoxLayout(main_widget)
-		self.setCentralWidget(main_widget)
+		self.my_layout = QHBoxLayout(self.main_widget)
+		self.setCentralWidget(self.main_widget)
 
-		self.group_button_set = GroupButtonSet(int(self.group_percentage * self.width()), 
-			self.data_manager.logo_array, self.data_manager.config["group"], 
+		self.group_button_widget = GroupButtonWidget(
+			int(self.group_percentage * self.width()), 
+			self.data_manager.logo_array, self.data_manager.loadBinaryArray("random-setting-array"), 
+			self.data_manager.config["group"], 
 			checked_group=self._init_config.get("group", 0), parent=self
 		)
-		self.left_layout.addWidget(self.group_button_set)
+		self.left_layout.addWidget(self.group_button_widget)
 
 		self.search_box = SearchBox(
 			int(self.search_box_height_percentage * self.height()), 
@@ -144,7 +173,7 @@ class MainWindow(QMainWindow):
 
 		QTimer.singleShot(0, self.updateQuery)
 
-		self.group_button_set.button_group.buttonClicked.connect(self.refresh)
+		self.group_button_widget.group_button_set.button_group.buttonClicked.connect(self.refresh)
 		self.search_box.textChanged.connect(self.refresh)
 		self.music_list_widget.music_updated.connect(self.refreshCurrentIndex)
 		self.filter_button.filter_option_changed.connect(self.refresh)
@@ -353,7 +382,7 @@ class MainWindow(QMainWindow):
 
 	def refresh(self) -> None: 
 		sort_type = self.sort_type_box.getCurrentSortType()
-		group = self.group_button_set.getCurrentGroup()
+		group = self.group_button_widget.getCurrentGroup()
 		difficulty = self.diff_button_set.getDifficulty()
 		filter_options = self.filter_button.filter_dialog.getCurrentFilterOptions()
 		search_content = self.search_box.text()
@@ -398,7 +427,7 @@ class MainWindow(QMainWindow):
 		elif difficulty_type == "複数の難易度": 
 			music_list = pd.DataFrame()
 			sort_type = self.sort_type_box.getCurrentSortType()
-			group = self.group_button_set.getCurrentGroup()
+			group = self.group_button_widget.getCurrentGroup()
 			filter_option = self.filter_button.getCurrentFilterOptions()
 			search_content = self.search_box.text()
 			vocal_table = self.data_manager.vocal_table
@@ -444,7 +473,7 @@ class MainWindow(QMainWindow):
 	def _saveConfig(self) -> None: 
 		self.config["difficulty"] = self.diff_button_set.getDifficulty().value
 		self.config["filter"] = self.filter_button.getCurrentFilterOptions().value
-		self.config["group"] = self.group_button_set.getCurrentGroupConfig()
+		self.config["group"] = self.group_button_widget.getCurrentGroupConfig()
 		self.config["music_id"] = self.music_list_widget.getCurrentMusicId()
 		self.config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()
 		self.config["search"] = self.search_box.text()
