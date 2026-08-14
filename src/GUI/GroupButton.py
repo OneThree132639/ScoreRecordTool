@@ -279,7 +279,7 @@ class GroupButtonSet(QListWidget):
 
 		palette = self.palette()
 		color = QColor("#5c5c7d")
-		color.setAlpha(0)
+		color.setAlpha(127)
 		palette.setColor(QPalette.ColorRole.Base, color)
 		self.setPalette(palette)
 		self.setAutoFillBackground(True)
@@ -339,6 +339,7 @@ class AddGroupButton(QPushButton):
 
 	rounded_percentage = 0.05
 	icon_percentage = 0.5
+	border_percentage = 0.1
 	stroke_percentage = 0.2
 
 	def __init__(self, btn_size: int, parent: Optional[QWidget]=None) -> None: 
@@ -351,10 +352,14 @@ class AddGroupButton(QPushButton):
 		painter = QPainter(self)
 		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-		color = QColor(255, 255, 255, 255)
-		painter.setPen(Qt.PenStyle.NoPen)
-		painter.setBrush(QBrush(color))
 		rounded_radius = int(self.btn_size * self.rounded_percentage)
+		color = QColor(255, 255, 255, 255)
+		border_color = QColor("#5c5c7d")
+		pen = QPen()
+		pen.setColor(border_color)
+		pen.setWidth(int(self.btn_size * self.border_percentage))
+		painter.setPen(pen)
+		painter.setBrush(QBrush(color))
 		painter.drawRoundedRect(self.rect(), rounded_radius, rounded_radius)
 
 		painter.save()
@@ -379,6 +384,7 @@ class SubGroupButton(QPushButton):
 
 	rounded_percentage = 0.05
 	icon_percentage = 0.5
+	border_percentage = 0.1
 	stroke_percentage = 0.2
 
 	def __init__(self, btn_size: int, parent: Optional[QWidget]=None) -> None: 
@@ -391,10 +397,14 @@ class SubGroupButton(QPushButton):
 		painter = QPainter(self)
 		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-		color = QColor(255, 255, 255, 255)
-		painter.setPen(Qt.PenStyle.NoPen)
-		painter.setBrush(QBrush(color))
 		rounded_radius = int(self.btn_size * self.rounded_percentage)
+		color = QColor(255, 255, 255, 255)
+		border_color = QColor("#5c5c7d")
+		pen = QPen()
+		pen.setColor(border_color)
+		pen.setWidth(int(self.btn_size * self.border_percentage))
+		painter.setPen(pen)
+		painter.setBrush(QBrush(color))
 		painter.drawRoundedRect(self.rect(), rounded_radius, rounded_radius)
 
 		painter.save()
@@ -416,6 +426,7 @@ class SettingGroupButton(QPushButton):
 
 	rounded_percentage = 0.05
 	icon_percentage = 0.8
+	border_percentage = 0.1
 	stroke_percentage = 0.1
 
 	def __init__(self, btn_size: int, icon_array: np.ndarray, parent: Optional[QWidget]=None) -> None: 
@@ -449,10 +460,14 @@ class SettingGroupButton(QPushButton):
 		painter = QPainter(self)
 		painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
-		color = QColor(255, 255, 255, 255)
-		painter.setPen(Qt.PenStyle.NoPen)
-		painter.setBrush(QBrush(color))
 		rounded_radius = int(self.btn_size * self.rounded_percentage)
+		color = QColor(255, 255, 255, 255)
+		border_color = QColor("#5c5c7d")
+		pen = QPen()
+		pen.setColor(border_color)
+		pen.setWidth(int(self.btn_size * self.border_percentage))
+		painter.setPen(pen)
+		painter.setBrush(QBrush(color))
 		painter.drawRoundedRect(self.rect(), rounded_radius, rounded_radius)
 
 		painter.save()
@@ -508,14 +523,6 @@ class GroupButtonWidget(QWidget):
 		padding = int(btn_size * self.padding_percentage)
 		self.setFixedWidth(btn_size + 2 * padding)
 
-		palette = self.palette()
-		color = QColor("#5c5c7d")
-		color.setAlpha(127)
-		palette.setColor(QPalette.ColorRole.Background, color)
-		self.setPalette(palette)
-		self.setAutoFillBackground(True)
-
-		self.add_button.clicked.connect(lambda: logging.debug("add button clicked. "))
 		self.sub_button.clicked.connect(lambda: logging.debug("sub button clicked. "))
 		self.setting_button.clicked.connect(lambda: logging.debug("setting button clicked. "))
 

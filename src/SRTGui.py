@@ -1,17 +1,18 @@
 import logging
 import json
+import numpy as np
 import os
 import pandas as pd
 import sys
 import zipfile
 
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
 	pyqtSignal, QDir, QEvent, QObject, QRect, QTimer
 )
 from PyQt5.QtGui import (
-	QMouseEvent
+	QColor, QMouseEvent
 )
 from PyQt5.QtWidgets import (
 	QDialog, QFileDialog, QHBoxLayout, QMainWindow, 
@@ -20,6 +21,7 @@ from PyQt5.QtWidgets import (
 
 if __package__ is None or __package__ == "": 
 	from DataManager.DataManager import DataManager
+	from GUI.Basics.BasicClass import GeneralClickButton
 	from GUI.Basics.Enums.Difficulty import Difficulty
 	from GUI.Basics.Enums.Group import Group
 	from GUI.Basics.Enums.FilterOptions import SongType
@@ -35,6 +37,7 @@ if __package__ is None or __package__ == "":
 	from GUI.SortTypeBox import SortTypeBox
 else: 
 	from .DataManager.DataManager import DataManager
+	from .GUI.Basics.BasicClass import GeneralClickButton
 	from .GUI.Basics.Enums.Difficulty import Difficulty
 	from .GUI.Basics.Enums.Group import Group
 	from .GUI.Basics.Enums.FilterOptions import SongType
@@ -54,7 +57,17 @@ class CustomListDialog(QDialog):
 	width_height_ratio = 1.5
 	height_precentage = 0.8
 
-	def __init__(self, available_geometry: QRect, title: str, parent: Optional[QWidget]=None) -> None: 
+	group_percentage = 0.1
+
+	down_percentage = 0.05
+	button_width_height_ratio = 3
+
+	def __init__(self, 
+			available_geometry: QRect, title: str, 
+			group_masks: np.ndarray, group_config: Dict[str, Dict[str, str]], 
+			checked_group: Union[int, str], 
+			parent: Optional[QWidget]=None
+		) -> None: 
 		super().__init__(parent)
 		self.setWindowTitle(title)
 		height = int(available_geometry.height() * self.height_precentage)
@@ -63,15 +76,42 @@ class CustomListDialog(QDialog):
 		centerDialog(self, parent)
 		self.setModal(True)
 
+		self.up_layout = QHBoxLayout()
+		self.down_layout = QHBoxLayout()
 		self.left_layout = QVBoxLayout()
 		self.middle_layout = QVBoxLayout()
 		self.right_layout = QVBoxLayout()
 		self.rightup_layout = QHBoxLayout()
 		self.rightmiddle_layout = QVBoxLayout()
 		self.rightdown_layout = QHBoxLayout()
-		self.my_layout = QHBoxLayout(self)
+		self.my_layout = QVBoxLayout(self)
 		self.setLayout(self.my_layout)
-		
+
+		self.group_button_set = GroupButtonSet(
+			int(self.group_percentage * self.width()), 
+			group_masks=group_masks, btn_config=group_config, 
+			checked_group=checked_group, parent=self
+		)
+		self.left_layout.addWidget(self.group_button_set)
+
+		button_height = int(height * self.down_percentage)
+		button_width = button_height * self.button_width_height_ratio
+		self.cancel_button = GeneralClickButton(button_width, button_height, QColor(255, 255, 255), "キャンセル", self)
+		self.accept_button = GeneralClickButton(button_width, button_height, QColor("#77EEDD"), "決定", self)
+		self.down_layout.addWidget(self.cancel_button)
+		self.down_layout.addWidget(self.accept_button)
+
+		self.right_layout.addLayout(self.rightup_layout)
+		self.right_layout.addLayout(self.rightmiddle_layout)
+		self.right_layout.addLayout(self.rightdown_layout)
+		self.up_layout.addLayout(self.left_layout)
+		self.up_layout.addLayout(self.middle_layout)
+		self.up_layout.addLayout(self.right_layout)
+		self.my_layout.addLayout(self.up_layout)
+		self.my_layout.addLayout(self.down_layout)
+
+		self.cancel_button.clicked.connect(self.reject)
+		self.accept_button.clicked.connect(self.accept)
 
 
 class MainWindow(QMainWindow): 
@@ -171,6 +211,13 @@ class MainWindow(QMainWindow):
 		self.my_layout.addLayout(self.middle_layout)
 		self.my_layout.addLayout(self.right_layout)
 
+		self.custom_list_dialog = CustomListDialog(
+			available_geometry, title="Custom List", 
+			group_masks=self.data_manager.logo_array, group_config=self.data_manager.config["group"], 
+			checked_group=self._init_config.get("group", 0), 
+			parent=self
+		)
+
 		QTimer.singleShot(0, self.updateQuery)
 
 		self.group_button_widget.group_button_set.button_group.buttonClicked.connect(self.refresh)
@@ -180,6 +227,8 @@ class MainWindow(QMainWindow):
 		self.sort_type_box.currentIndexChanged.connect(self.refresh)
 		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
 		self.random_widget.random_button.clicked.connect(self.randomRolling)
+
+		self.group_button_widget.add_button.clicked.connect(self._onAddGroupButtonClicked)
 
 		self.installEventFilter(self)
 
@@ -499,3 +548,9 @@ class MainWindow(QMainWindow):
 			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.search_box.clearFocus()
 		return super().eventFilter(watched, event)
+
+	def _onAddGroupButtonClicked(self) -> None: 
+		if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
+			logging.debug("Custom list dialog accepted. ")
+		else: 
+			logging.debug("Custom list dialog rejected. ")
