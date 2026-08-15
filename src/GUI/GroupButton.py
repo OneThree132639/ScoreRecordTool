@@ -208,7 +208,8 @@ class TextButton(GroupButton):
 		painter.setFont(font)
 		painter.setBrush(Qt.BrushStyle.NoBrush)
 		for idx, line in enumerate(lines): 
-			line_width = metrics.boundingRect(line).width()
+			# line_width = metrics.boundingRect(line).width()
+			line_width = metrics.horizontalAdvance(line)
 			x = (rect.width() - line_width) / 2 + padding
 			y = start + idx * (height + leading) + padding
 			target_rect = QRectF(x, y, line_width, height)
@@ -332,6 +333,15 @@ class GroupButtonSet(QListWidget):
 				btn.setChecked(True)
 				return
 			elif isinstance(btn.my_group, str) and btn.my_group == value: 
+				btn.setChecked(True)
+				return
+
+	def setCurrentGroup(self, group: Union[Group, str]) -> None: 
+		for btn in self.button_list: 
+			if isinstance(btn.my_group, Group) and isinstance(group, Group) and btn.my_group == group: 
+				btn.setChecked(True)
+				return
+			elif isinstance(btn.my_group, str) and isinstance(group, str) and btn.my_group == group: 
 				btn.setChecked(True)
 				return
 

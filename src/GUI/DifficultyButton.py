@@ -108,7 +108,8 @@ class OrdinaryButton(DifficultyButton):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.boundingRect(str(self.level)).width()
+		# text_width = metrics.boundingRect(str(self.level)).width()
+		text_width = metrics.horizontalAdvance(str(self.level))
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2),
@@ -176,7 +177,8 @@ class AppendButton(DifficultyButton):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.boundingRect(str(self.level)).width()
+		# text_width = metrics.boundingRect(str(self.level)).width()
+		text_width = metrics.horizontalAdvance(str(self.level))
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 + scaled_rect.height() * self.text_down_percentage),
@@ -197,7 +199,8 @@ class AppendButton(DifficultyButton):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.boundingRect("APD").width()
+		# text_width = metrics.boundingRect("APD").width()
+		text_width = metrics.horizontalAdvance("APD")
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 - scaled_rect.height() * self.ruby_up_percentage),

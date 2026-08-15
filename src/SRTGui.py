@@ -6,7 +6,7 @@ import pandas as pd
 import sys
 import zipfile
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
 	pyqtSignal, QDir, QEvent, QObject, QRect, QTimer
@@ -73,6 +73,7 @@ class CustomListDialog(QDialog):
 			group_masks: np.ndarray, group_config: Dict[str, Dict[str, str]], 
 			checked_group: Union[int, str], search_init: str, 
 			filter_init: str, sort_type_init: str, diff_btn_config: Dict[str, Dict[str, Dict[str, Any]]], 
+			get_cover_func: Callable[[int], Optional[np.ndarray]], 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -85,7 +86,10 @@ class CustomListDialog(QDialog):
 		self.setModal(True)
 
 		self.music_table = pd.DataFrame()
+		self.vocal_table = pd.DataFrame()
 		self.music_tags = pd.DataFrame()
+		self.diff_btn_config = diff_btn_config
+		self.get_cover_func = get_cover_func
 
 		self.up_layout = QHBoxLayout()
 		self.down_layout = QHBoxLayout()
@@ -151,9 +155,137 @@ class CustomListDialog(QDialog):
 		self.cancel_button.clicked.connect(self.reject)
 		self.accept_button.clicked.connect(self.accept)
 
-	def initRefresh(self, music_table: pd.DataFrame, music_tag: pd.DataFrame) -> None: 
+		self.group_button_set.button_group.buttonClicked.connect(self.refresh)
+		self.search_box.textChanged.connect(self.refresh)
+		self.music_list_widget.music_updated.connect(self.refreshCurrentIndex)
+		self.filter_button.filter_option_changed.connect(self.refresh)
+		self.sort_type_box.currentIndexChanged.connect(self.refresh)
+		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
+
+	def initRefresh(self, 
+			music_table: pd.DataFrame, vocal_table: pd.DataFrame, 
+			music_tags: pd.DataFrame
+		) -> None: 
 		self.music_table = music_table
-		self.music_tag = music_tag
+		self.vocal_table = vocal_table
+		self.music_tags = music_tags
+
+	def initLoad(self, 
+			group: Group, search_content: str, filter_option: SongType, 
+			sort_type: SortType, difficulty: Difficulty, music_id: int
+		) -> None: 
+		self.group_button_set.setCurrentGroup(group)
+		self.search_box.setText(search_content)
+		self.filter_button.setCurrentFilterOptions(filter_option)
+		self.sort_type_box.setCurrentSortType(sort_type)
+
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.refresh()
+		self.music_list_widget.setCurrentMusicId(music_id)
+
+
+	def _filterByUnit(self, music_list: pd.DataFrame, group: Group) -> pd.DataFrame: 
+		music_tags = self.music_tags
+		mapping = {
+			Group.ALL: 0, Group.VS: 1, Group.LN: 6, Group.MMJ: 4, Group.VBS: 3, Group.WS: 2, Group.NG: 5, Group.OTHER: 7
+		}
+		music_ids = music_tags[music_tags["seq"] == mapping[group]]["musicId"].unique()
+		return music_list[music_list["id_musics"].isin(music_ids)]
+
+	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: SongType) -> pd.DataFrame: 
+		match filter_option: 
+			case SongType.ALL: 
+				pass
+			case SongType.COMMISSIONED: 
+				music_list = music_list[(music_list["seq"] // 100000).isin((17, 21, 22, 23, 24, 25, 26, 27))]
+			case SongType.HAS_APPEND: 
+				music_table: pd.DataFrame = self.music_table.copy()
+				music_ids = music_table[music_table["musicDifficulty"] == "append"]["id_musics"].unique()
+				music_list = music_list[music_list["id_musics"].isin(music_ids)]
+		return music_list
+
+	def _filterBySearchContent(self, music_list: pd.DataFrame, search_content: str) -> pd.DataFrame: 
+		bool_df: pd.DataFrame = music_list[[
+			"title", "pronunciation", "pronunciationKatakana", "lyricist", "composer", 
+			"arranger", "artistsName", "artistsPronunciation", "artistsPronunciationKatakana"
+			
+		]].apply(lambda col: col.astype(str).str.contains(search_content, na=False))
+		mask: pd.Series= bool_df.any(axis=1)
+		result: pd.DataFrame = music_list[mask]
+		return result
+
+	def _filtering(self, 
+			group: Group, difficulty: Difficulty, filter_option: SongType, 
+			search_content: str, sort_type: SortType
+		) -> pd.DataFrame: 
+		music_table: pd.DataFrame = self.music_table.copy()
+		music_list: pd.DataFrame = music_table[music_table["musicDifficulty"] == difficulty.value.lower()]
+		music_list = self._filterByUnit(music_list, group)
+		music_list = self._filterByFilterOptions(music_list, filter_option)
+		music_list = self._filterBySearchContent(music_list, search_content)
+
+		sort_tuple = ("seq", "publishedAt", "pronunciation", "playLevel")
+		sort_labels = [sort_tuple[sort_type.toIndex()], "seq"]
+		sort_labels = list(dict.fromkeys(sort_labels))
+		music_list = music_list.sort_values(by=sort_labels, ascending=True)
+
+		return music_list
+
+	def _getMusicLevels(self, music_id: int) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
+		diff_list: pd.DataFrame = self.music_table.copy()
+		diff_list = diff_list[diff_list["id_musics"] == music_id].set_index("musicDifficulty")
+		diffs = ("easy", "normal", "hard", "expert", "master", "append")
+		difficulties = tuple(diff_list.loc[diff, "playLevel"] if diff in diff_list.index else None for diff in diffs)
+		return difficulties # type: ignore
+
+	def refreshCurrentIndex(self, music_id: int) -> None: 
+		difficulty = self.diff_button_set.getDifficulty()
+		if len(self.music_list_widget.getCurrentMusicList()) == 0: 
+			difficulties = (None, None, None, None, None, None)
+		else: 
+			difficulties = self._getMusicLevels(music_id)
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.diff_button_set.setLevels(difficulties, difficulty)
+		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.display_card.pause()
+		self.display_card.resume() 
+
+	def refresh(self) -> None: 
+		sort_type = self.sort_type_box.getCurrentSortType()
+		group = self.group_button_set.getCurrentGroup()
+		difficulty = self.diff_button_set.getDifficulty()
+		filter_options = self.filter_button.filter_dialog.getCurrentFilterOptions()
+		search_content = self.search_box.text()
+		music_id = self.music_list_widget.getCurrentMusicId()
+		assert isinstance(group, Group)
+
+		music_list = self._filtering(
+			group, difficulty, filter_options, search_content, sort_type
+		)
+
+		if len(music_list) == 0: 
+			current_index = 0
+		else: 
+			if music_id not in music_list["id_musics"].values: 
+				current_index = 0
+				music_id = music_list.iloc[current_index]["id_musics"]
+			else: 
+				current_index = music_list.set_index("id_musics").index.get_loc(music_id)
+
+		difficulties = self._getMusicLevels(music_id)
+		vocal_list = self.vocal_table
+
+		self.filter_button.setNormalState(search_content, filter_options)
+		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
+		self.diff_button_set.setLevels(difficulties, difficulty)
+		self.music_list_widget.switchList(
+			sort_type, group, difficulty, search_content, filter_options, 
+			music_list, vocal_list, self.diff_btn_config[difficulty.value.lower()]["pressed"], 
+			self.get_cover_func, music_id
+		)
+		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.display_card.pause()
+		self.display_card.resume()
 
 
 class MainWindow(QMainWindow): 
@@ -258,7 +390,7 @@ class MainWindow(QMainWindow):
 			group_masks=self.data_manager.logo_array, group_config=self.data_manager.config["group"], 
 			checked_group=self._init_config.get("group", 0), search_init=self._init_config.get("search", ""), 
 			filter_init=self._init_config.get("filter", {}), sort_type_init=self._init_config.get("sort_type", ""), 
-			diff_btn_config=self.data_manager.config["button"], 
+			diff_btn_config=self.data_manager.config["button"], get_cover_func=self.data_manager.getCoverArray, 
 			parent=self
 		)
 
@@ -314,6 +446,14 @@ class MainWindow(QMainWindow):
 		self.refresh()
 		music_id = self._init_config.get("music_id", 0)
 		self.music_list_widget.setCurrentMusicId(music_id)
+
+		music_table = self.data_manager.music_table
+		vocal_table = self.data_manager.vocal_table
+		music_tags = self.data_manager.musicTags
+		assert music_table is not None
+		assert vocal_table is not None
+		assert music_tags is not None
+		self.custom_list_dialog.initRefresh(music_table, vocal_table, music_tags)
 
 	def updateQuery(self) -> None: 
 		msg_box = QMessageBox(self)
@@ -594,6 +734,15 @@ class MainWindow(QMainWindow):
 		return super().eventFilter(watched, event)
 
 	def _onAddGroupButtonClicked(self) -> None: 
+		group = self.group_button_widget.getCurrentGroup()
+		if not isinstance(group, Group): 
+			group = Group.ALL
+		self.custom_list_dialog.initLoad(
+			group, 
+			self.search_box.text(), self.filter_button.getCurrentFilterOptions(), 
+			self.sort_type_box.getCurrentSortType(), self.diff_button_set.getDifficulty(), 
+			self.music_list_widget.getCurrentMusicId()
+		)
 		if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
 			logging.debug("Custom list dialog accepted. ")
 		else: 

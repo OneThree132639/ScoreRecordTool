@@ -52,7 +52,8 @@ class MarqueeLabel(QLabel):
 			return
 		
 		metrics = QFontMetrics(self.font())
-		text_width = metrics.boundingRect(self.text()).width()
+		# text_width = metrics.boundingRect(self.text()).width()
+		text_width = metrics.horizontalAdvance(self.text())
 
 		if text_width <= self.width(): 
 			self.offset = 0
@@ -74,7 +75,8 @@ class MarqueeLabel(QLabel):
 
 	def _getTextWidth(self) -> int: 
 		metrics = QFontMetrics(self.font())
-		return metrics.boundingRect(self.text()).width()
+		# return metrics.boundingRect(self.text()).width()
+		return metrics.horizontalAdvance(self.text())
 
 	def paintEvent(self, event: QPaintEvent) -> None: 
 		painter = QPainter(self)
@@ -188,7 +190,8 @@ class OrdinaryLabel(LevelLabel):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.boundingRect(str(self.level)).width()
+		# text_width = metrics.boundingRect(str(self.level)).width()
+		text_width = metrics.horizontalAdvance(str(self.level))
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2),
@@ -260,7 +263,8 @@ class AppendLabel(LevelLabel):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.boundingRect(str(self.level)).width()
+		# text_width = metrics.boundingRect(str(self.level)).width()
+		text_width = metrics.horizontalAdvance(str(self.level))
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 + scaled_rect.height() * self.text_down_percentage[self.is_special]),
@@ -281,7 +285,8 @@ class AppendLabel(LevelLabel):
 		font.setPixelSize(font_size)
 		metrics = QFontMetrics(font)
 		text_height = metrics.height()
-		text_width = metrics.boundingRect("APD").width()
+		# text_width = metrics.boundingRect("APD").width()
+		text_width = metrics.horizontalAdvance("APD")
 		text_rect = QRect(
 			int(scaled_rect.x() + (scaled_rect.width() - text_width) / 2),
 			int(scaled_rect.y() + (scaled_rect.height() - text_height) / 2 - scaled_rect.height() * self.ruby_up_percentage[self.is_special]),

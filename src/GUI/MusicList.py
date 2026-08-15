@@ -38,7 +38,7 @@ class BasicCard(QWidget):
 	my_layout_spacing = 5
 	checkbox_icon_ratio = 0.6
 
-	checkbox_toggled = pyqtSignal(int, bool)
+	checkbox_toggled = pyqtSignal(int, Difficulty, bool)
 
 	@overload
 	def __init__(self, 
@@ -133,7 +133,7 @@ class BasicCard(QWidget):
 
 	def _onCheckBoxToggled(self) -> None: 
 		if self.has_check_box and not self.program_set: 
-			self.checkbox_toggled.emit(self.music_id, self.check_box.isChecked())
+			self.checkbox_toggled.emit(self.music_id, self.difficulty, self.check_box.isChecked())
 
 	def programSetCheckBox(self, checked: bool) -> None: 
 		original_state = self.program_set
@@ -394,7 +394,7 @@ class MusicList(QListWidget):
 	animation_duration = 500
 
 	music_selected = pyqtSignal(int)
-	checkbox_toggled = pyqtSignal(int, bool)
+	checkbox_toggled = pyqtSignal(int, Difficulty, bool)
 
 	def __init__(self, pixel_size: int, has_check_box: bool=False, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
@@ -406,7 +406,7 @@ class MusicList(QListWidget):
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
 
 		self.has_check_box = has_check_box
-		self.id_to_index_map: Dict[int, List[int]] = {}
+		self.iddiff_to_index_map: Dict[int, Dict[Difficulty, List[int]]] = {}
 
 		self.music_list = pd.DataFrame()
 		self._current_index = 0
@@ -501,12 +501,14 @@ class MusicList(QListWidget):
 		self._program_update = False
 		return music_id
 
-	def _addIdToIndex(self, music_id: int, index: int) -> None: 
+	def _addIdToIndex(self, music_id: int, difficulty: Difficulty, index: int) -> None: 
 		if not self.has_check_box: 
 			return
-		if music_id not in self.id_to_index_map: 
-			self.id_to_index_map[music_id] = []
-		self.id_to_index_map[music_id].append(index)
+		if music_id not in self.iddiff_to_index_map: 
+			self.iddiff_to_index_map[music_id] = {}
+		if difficulty not in self.iddiff_to_index_map[music_id]: 
+			self.iddiff_to_index_map[music_id][difficulty] = []
+		self.iddiff_to_index_map[music_id][difficulty].append(index)
 
 	def refreshData(self, 
 			music_table: Optional[pd.DataFrame], 
@@ -519,7 +521,8 @@ class MusicList(QListWidget):
 					Optional[np.ndarray]], Optional[int], Optional[int]
 				], 
 				Tuple[int, QStackedWidget, int, int]
-			]
+			], 
+			checked_list: List[Tuple[int, Difficulty]]=[]
 		) -> None: 
 		if music_table is None or vocal_table is None: 
 			logging.warning("Music table or vocal table is None, cannot refresh data.")
@@ -563,7 +566,10 @@ class MusicList(QListWidget):
 			assert music_card is not None
 			basic_card.checkbox_toggled.connect(self.checkbox_toggled)
 			music_card.checkbox_toggled.connect(self.checkbox_toggled)
-			self._addIdToIndex(basic_card.music_id, i)
+			self._addIdToIndex(basic_card.music_id, basic_card.difficulty, i)
+			if self.has_check_box and (basic_card.music_id, basic_card.difficulty) in checked_list: 
+				basic_card.programSetCheckBox(True)
+				music_card.programSetCheckBox(True)
 		self._updateAllContainerWidths()
 		self.setUpdatesEnabled(True)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
@@ -731,12 +737,14 @@ class MusicList(QListWidget):
 		self._current_index = self._fromMusicIdToIndex(music_id)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index), False)
 
-	def setCheckBox(self, music_id: int, checked: bool) -> None: 
+	def setCheckBox(self, music_id: int, difficulty: Difficulty, checked: bool) -> None: 
 		if not self.has_check_box: 
 			return
-		if music_id not in self.id_to_index_map: 
+		if music_id not in self.iddiff_to_index_map: 
 			return
-		for index in self.id_to_index_map[music_id]: 
+		if difficulty not in self.iddiff_to_index_map[music_id]: 
+			return
+		for index in self.iddiff_to_index_map[music_id][difficulty]: 
 			item = self.item(index)
 			assert item is not None
 			container: QStackedWidget = self.itemWidget(item)
@@ -767,6 +775,7 @@ class MusicListWidget(QStackedWidget):
 		self.empty_music_list = MusicList(self.large_height, self)
 		self.addWidget(self.empty_music_list)
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
+		self.checked_list: List[Tuple[int, Difficulty]] = []
 
 		self.normal_cache: Dict[Difficulty, 
 			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
@@ -923,7 +932,8 @@ class MusicListWidget(QStackedWidget):
 		new_music_list.refreshData(
 			music_list, vocal_list, difficulty, config,
 			get_cover_func=get_cover_func, 
-			create_container=self._createContainer
+			create_container=self._createContainer, 
+			checked_list=self.checked_list
 		)
 		new_music_list.music_selected.connect(self.music_updated.emit)
 		new_music_list.checkbox_toggled.connect(self.setCheckBox)
@@ -987,8 +997,10 @@ class MusicListWidget(QStackedWidget):
 		if current_list is not None: 
 			current_list._onScrollStop()
 
-	def setCheckBox(self, music_id: int, checked: bool) -> None: 
+	def setCheckBox(self, music_id: int, difficulty: Difficulty, checked: bool) -> None: 
+		self.checked_list.append((music_id, difficulty))
+		self.checked_list = list(set(self.checked_list))
 		for index in range(self.count()): 
 			music_list_widget: MusicList = self.widget(index)
 			if music_list_widget is not None: 
-				music_list_widget.setCheckBox(music_id, checked)
+				music_list_widget.setCheckBox(music_id, difficulty, checked)
