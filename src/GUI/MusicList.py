@@ -2,7 +2,9 @@ import logging
 import numpy as np
 import pandas as pd
 
-from typing import Any, Callable, Dict, Literal, Optional, Tuple, Union
+from typing import (
+	Any, Callable, Dict, List, Literal, Optional, Tuple, Union
+)
 from typing import overload
 
 from PyQt5.QtCore import (
@@ -17,12 +19,14 @@ from PyQt5.QtWidgets import (
 )
 
 if __package__ is None or __package__ == "": 
+	from Basics.BasicClass import OptionCheckBoxIndicator
 	from Basics.Enums.Difficulty import Difficulty
 	from Basics.Enums.Group import Group
 	from Basics.Enums.FilterOptions import SongType
 	from Basics.Enums.SortType import SortType
 	from Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 else: 
+	from .Basics.BasicClass import OptionCheckBoxIndicator
 	from .Basics.Enums.Difficulty import Difficulty
 	from .Basics.Enums.Group import Group
 	from .Basics.Enums.FilterOptions import SongType
@@ -32,26 +36,32 @@ else:
 class BasicCard(QWidget): 
 
 	my_layout_spacing = 5
+	checkbox_icon_ratio = 0.6
+
+	checkbox_toggled = pyqtSignal(int, bool)
 
 	@overload
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: Literal[None], pixmap: Literal[None], parent: Optional[QWidget]=None
+			cover: Literal[None], pixmap: Literal[None], has_check_box: bool=False, 
+			parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: np.ndarray, pixmap: Literal[None], parent: Optional[QWidget]=None
+			cover: np.ndarray, pixmap: Literal[None], has_check_box: bool=False, 
+			parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: QPixmap, pixmap: QPixmap, parent: Optional[QWidget]=None
+			cover: QPixmap, pixmap: QPixmap, has_check_box: bool=False, 
+			parent: Optional[QWidget]=None
 		) -> None: ...
 
 	def __init__(self, 
@@ -59,6 +69,7 @@ class BasicCard(QWidget):
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			cover: Optional[Union[np.ndarray, QPixmap]], 
 			pixmap: Optional[QPixmap], 
+			has_check_box: bool=False, 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -66,6 +77,7 @@ class BasicCard(QWidget):
 		self.large_height = large_height
 		self.icon_size = icon_size
 		self.label_size = label_size
+		self.has_check_box = has_check_box
 
 		self.music_id = int(music_id)
 		self.title = title
@@ -98,6 +110,10 @@ class BasicCard(QWidget):
 		self.info_layout = QVBoxLayout(self.info_widget)
 		self.info_widget.setLayout(self.info_layout)
 
+		self.check_box = OptionCheckBoxIndicator(int(self.icon_size * self.checkbox_icon_ratio), self)
+		self.check_box.toggled.connect(self._onCheckBoxToggled)
+		self.program_set = False
+
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.setSpacing(self.my_layout_spacing)
 		self.setLayout(self.my_layout)
@@ -114,6 +130,16 @@ class BasicCard(QWidget):
 
 	def getData(self) -> Any: 
 		raise NotImplementedError("Subclasses should implement this method. ")
+
+	def _onCheckBoxToggled(self) -> None: 
+		if self.has_check_box and not self.program_set: 
+			self.checkbox_toggled.emit(self.music_id, self.check_box.isChecked())
+
+	def programSetCheckBox(self, checked: bool) -> None: 
+		original_state = self.program_set
+		self.program_set = True
+		self.check_box.setChecked(checked)
+		self.program_set = original_state
 	
 class NormalCard(BasicCard): 
 
@@ -121,33 +147,34 @@ class NormalCard(BasicCard):
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
-			cover: Literal[None], pixmap: Literal[None], parent: Optional[QWidget]=None
+			cover: Literal[None], pixmap: Literal[None], has_check_box: bool=False, parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
-			cover: np.ndarray, pixmap: Literal[None], parent: Optional[QWidget]=None
+			cover: np.ndarray, pixmap: Literal[None], has_check_box: bool=False, parent: Optional[QWidget]=None
 		) -> None: ...
 
 	@overload
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
-			cover: QPixmap, pixmap: QPixmap, parent: Optional[QWidget]=None
+			cover: QPixmap, pixmap: QPixmap, has_check_box: bool=False, parent: Optional[QWidget]=None
 		) -> None: ...
 
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
 			config: Dict[str, str], cover: Optional[Union[np.ndarray, QPixmap]], 
-			pixmap: Optional[QPixmap], 
+			pixmap: Optional[QPixmap], has_check_box: bool=False, 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(
 			small_height, large_height, icon_size, label_size, 
-			music_id, title, difficulty, level, cover, pixmap, parent
+			music_id, title, difficulty, level, cover, pixmap, 
+			has_check_box=has_check_box, parent=parent
 		)
 		self.config = config
 
@@ -162,6 +189,10 @@ class NormalCard(BasicCard):
 		self.my_layout.addWidget(self.level_label)
 		self.my_layout.addWidget(self.cover_label)
 		self.my_layout.addWidget(self.info_widget)
+		if self.has_check_box: 
+			self.my_layout.addWidget(self.check_box)
+		else: 
+			self.check_box.hide()
 
 	def getData(self) -> Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]: 
 		pixmap = None if self.pixmap is None else self.pixmap.copy()
@@ -184,10 +215,12 @@ class MusicCard(BasicCard):
 		music_id: int, title: str, composer: str, vocal: str, 
 		difficulty: Difficulty, level: int, config: Dict[str, Any], 
 		cover: Optional[Union[np.ndarray, QPixmap]], pixmap: Optional[QPixmap], 
+		has_check_box: bool=False, 
 		parent: Optional[QWidget]=None
 	) -> None: 
 		super().__init__(small_height, large_height, icon_size, label_size, 
-			music_id, title, difficulty, level, cover, pixmap, parent
+			music_id, title, difficulty, level, cover, pixmap, 
+			has_check_box=has_check_box, parent=parent
 		)
 		self.composer = composer
 		self.vocal = vocal
@@ -208,6 +241,10 @@ class MusicCard(BasicCard):
 		self.my_layout.addWidget(self.level_label)
 		self.my_layout.addWidget(self.cover_label)
 		self.my_layout.addWidget(self.info_widget)
+		if self.has_check_box: 
+			self.my_layout.addWidget(self.check_box)
+		else: 
+			self.check_box.hide()
 
 	def getData(self) -> Tuple[int, str, str, str, Difficulty, int, Dict[str, Any], Optional[QPixmap], Optional[QPixmap]]: 
 		pixmap = None if self.pixmap is None else self.pixmap.copy()
@@ -357,8 +394,9 @@ class MusicList(QListWidget):
 	animation_duration = 500
 
 	music_selected = pyqtSignal(int)
+	checkbox_toggled = pyqtSignal(int, bool)
 
-	def __init__(self, pixel_size: int, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, pixel_size: int, has_check_box: bool=False, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 
 		self.setFlow(QListWidget.Flow.TopToBottom)
@@ -366,6 +404,9 @@ class MusicList(QListWidget):
 		self.setUniformItemSizes(False)
 		self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 		self.setVerticalScrollMode(QListWidget.ScrollMode.ScrollPerPixel)
+
+		self.has_check_box = has_check_box
+		self.id_to_index_map: Dict[int, List[int]] = {}
 
 		self.music_list = pd.DataFrame()
 		self._current_index = 0
@@ -424,11 +465,11 @@ class MusicList(QListWidget):
 					pd.Series, pd.DataFrame, Difficulty, Dict[str, Any], Callable[[int], 
 					Optional[np.ndarray]], Optional[int], Optional[int]
 				], 
-				Tuple[QStackedWidget, int, int]
+				Tuple[int, QStackedWidget, int, int]
 			]
-		) -> None: 
+		) -> int: 
 		self._program_update = True
-		container, self.normal_height, self.music_height = create_container(
+		music_id, container, self.normal_height, self.music_height = create_container(
 			row, vocal_table, difficulty, config, get_cover_func, self.normal_height, self.music_height
 		)
 		item = QListWidgetItem()
@@ -436,6 +477,7 @@ class MusicList(QListWidget):
 		self.addItem(item)
 		self.setItemWidget(item, container)
 		self._program_update = False
+		return music_id
 
 	def _insertContainer(self, row: pd.Series, vocal_table: pd.DataFrame, 
 			difficulty: Difficulty, config: Dict[str, Any], 
@@ -445,11 +487,11 @@ class MusicList(QListWidget):
 					pd.Series, pd.DataFrame, Difficulty, Dict[str, Any], Callable[[int], 
 					Optional[np.ndarray]], Optional[int], Optional[int]
 				], 
-				Tuple[QStackedWidget, int, int]
+				Tuple[int, QStackedWidget, int, int]
 			]
-		) -> None: 
+		) -> int: 
 		self._program_update = True
-		container, self.normal_height, self.music_height = create_container(
+		music_id, container, self.normal_height, self.music_height = create_container(
 			row, vocal_table, difficulty, config, get_cover_func, self.normal_height, self.music_height
 		)
 		item = QListWidgetItem()
@@ -457,6 +499,14 @@ class MusicList(QListWidget):
 		self.insertItem(index, item)
 		self.setItemWidget(item, container)
 		self._program_update = False
+		return music_id
+
+	def _addIdToIndex(self, music_id: int, index: int) -> None: 
+		if not self.has_check_box: 
+			return
+		if music_id not in self.id_to_index_map: 
+			self.id_to_index_map[music_id] = []
+		self.id_to_index_map[music_id].append(index)
 
 	def refreshData(self, 
 			music_table: Optional[pd.DataFrame], 
@@ -468,7 +518,7 @@ class MusicList(QListWidget):
 					pd.Series, pd.DataFrame, Difficulty, Dict[str, Any], Callable[[int], 
 					Optional[np.ndarray]], Optional[int], Optional[int]
 				], 
-				Tuple[QStackedWidget, int, int]
+				Tuple[int, QStackedWidget, int, int]
 			]
 		) -> None: 
 		if music_table is None or vocal_table is None: 
@@ -502,6 +552,18 @@ class MusicList(QListWidget):
 				create_container=create_container
 			)
 		self.music_list = music_table.reset_index(drop=True)
+		for i in range(self.count()): 
+			item = self.item(i)
+			assert item is not None
+			container: QStackedWidget = self.itemWidget(item) 
+			assert container is not None
+			basic_card: BasicCard = container.widget(0)
+			music_card: MusicCard = container.widget(1)
+			assert basic_card is not None
+			assert music_card is not None
+			basic_card.checkbox_toggled.connect(self.checkbox_toggled)
+			music_card.checkbox_toggled.connect(self.checkbox_toggled)
+			self._addIdToIndex(basic_card.music_id, i)
 		self._updateAllContainerWidths()
 		self.setUpdatesEnabled(True)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index))
@@ -668,6 +730,23 @@ class MusicList(QListWidget):
 	def setMusicId(self, music_id: int) -> None: 
 		self._current_index = self._fromMusicIdToIndex(music_id)
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index), False)
+
+	def setCheckBox(self, music_id: int, checked: bool) -> None: 
+		if not self.has_check_box: 
+			return
+		if music_id not in self.id_to_index_map: 
+			return
+		for index in self.id_to_index_map[music_id]: 
+			item = self.item(index)
+			assert item is not None
+			container: QStackedWidget = self.itemWidget(item)
+			assert container is not None
+			basic_card: BasicCard = container.widget(0)
+			music_card: MusicCard = container.widget(1)
+			assert basic_card is not None
+			assert music_card is not None
+			basic_card.programSetCheckBox(checked)
+			music_card.programSetCheckBox(checked)
 		
 
 class MusicListWidget(QStackedWidget): 
@@ -678,12 +757,13 @@ class MusicListWidget(QStackedWidget):
 	icon_percentage = 0.10
 	label_percentage = 0.10
 
-	def __init__(self, init_height: int, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, init_height: int, has_check_box: bool=False, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.small_height = int(init_height * self.small_percentage)
 		self.large_height = int(init_height * self.large_percentage)
 		self.icon_size = int(init_height * self.icon_percentage)
 		self.label_size = int(init_height * self.label_percentage)
+		self.has_check_box = has_check_box
 		self.empty_music_list = MusicList(self.large_height, self)
 		self.addWidget(self.empty_music_list)
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
@@ -763,7 +843,7 @@ class MusicListWidget(QStackedWidget):
 				return MusicCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
 					cached_data[0], cached_data[1], cached_data[2], cached_data[3], cached_data[4], 
-					cached_data[5], cached_data[6], scaled_pixmap, pixmap
+					cached_data[5], cached_data[6], scaled_pixmap, pixmap, has_check_box=self.has_check_box
 				)
 			else: 
 				title = row["title"]
@@ -773,7 +853,8 @@ class MusicListWidget(QStackedWidget):
 				level = row["playLevel"]
 				card = MusicCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
-					music_id, title, composer, vocal, difficulty, level, config, cover, None
+					music_id, title, composer, vocal, difficulty, level, config, cover, None, 
+					has_check_box=self.has_check_box
 				)
 				self.music_cache[difficulty][music_id] = card.getData()
 				return card
@@ -787,7 +868,8 @@ class MusicListWidget(QStackedWidget):
 				return NormalCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
 					cached_data[0], cached_data[1], cached_data[2], 
-					cached_data[3], cached_data[4], scaled_pixmap, pixmap
+					cached_data[3], cached_data[4], scaled_pixmap, pixmap, 
+					has_check_box=self.has_check_box
 				)
 			else: 
 				title = row["title"]
@@ -795,7 +877,8 @@ class MusicListWidget(QStackedWidget):
 				level = row["playLevel"]
 				card = NormalCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
-					music_id, title, difficulty, level, config, cover, None
+					music_id, title, difficulty, level, config, cover, None, 
+					has_check_box=self.has_check_box
 				)
 				self.normal_cache[difficulty][music_id] = card.getData()
 				return card
@@ -804,7 +887,7 @@ class MusicListWidget(QStackedWidget):
 			difficulty: Difficulty, config: Dict[str, Any], 
 			get_cover_func: Callable[[int], Optional[np.ndarray]], 
 			normal_height: Optional[int]=None, music_height: Optional[int]=None
-		) -> Tuple[QStackedWidget, int, int]: 
+		) -> Tuple[int, QStackedWidget, int, int]: 
 		container = QStackedWidget()
 		container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 		normal_card = self._createCard(
@@ -819,7 +902,7 @@ class MusicListWidget(QStackedWidget):
 			music_height = music_card.sizeHint().height()
 		container.addWidget(normal_card)
 		container.addWidget(music_card)
-		return container, normal_height, music_height
+		return row["id_musics"], container, normal_height, music_height
 
 	def appendList(self, 
 			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
@@ -843,6 +926,7 @@ class MusicListWidget(QStackedWidget):
 			create_container=self._createContainer
 		)
 		new_music_list.music_selected.connect(self.music_updated.emit)
+		new_music_list.checkbox_toggled.connect(self.setCheckBox)
 
 		self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, self.count())
 		self.addWidget(new_music_list)
@@ -902,3 +986,9 @@ class MusicListWidget(QStackedWidget):
 		current_list: MusicList = self.currentWidget()
 		if current_list is not None: 
 			current_list._onScrollStop()
+
+	def setCheckBox(self, music_id: int, checked: bool) -> None: 
+		for index in range(self.count()): 
+			music_list_widget: MusicList = self.widget(index)
+			if music_list_widget is not None: 
+				music_list_widget.setCheckBox(music_id, checked)

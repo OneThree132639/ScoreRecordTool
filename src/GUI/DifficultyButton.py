@@ -213,7 +213,7 @@ class AppendButton(DifficultyButton):
 
 class DifficultyButtonSet(QWidget): 
 
-	padding = 5
+	padding_percentage = 0.05
 
 	def __init__(self, 
 			btn_size: int, levels: Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]], 
@@ -222,6 +222,7 @@ class DifficultyButtonSet(QWidget):
 		) -> None: 
 		super().__init__(parent)
 		self.btn_size = btn_size
+		self.padding = int(self.btn_size * self.padding_percentage)
 		self.setFixedHeight(btn_size + 2 * self.padding)
 		level: Callable[[Optional[int]], int] = lambda level: 0 if level is None else level
 		self.easy_button = OrdinaryButton(self.btn_size, Difficulty.EASY, level(levels[0]), btn_config["easy"], self)
@@ -253,7 +254,7 @@ class DifficultyButtonSet(QWidget):
 		palette = self.palette()
 		color = QColor("#5c5c7d")
 		color.setAlpha(127)
-		palette.setColor(QPalette.ColorRole.Window, color)
+		palette.setColor(QPalette.ColorRole.Background, color)
 		self.setPalette(palette)
 		self.setAutoFillBackground(True)
 

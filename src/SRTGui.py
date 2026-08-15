@@ -6,7 +6,7 @@ import pandas as pd
 import sys
 import zipfile
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
 	pyqtSignal, QDir, QEvent, QObject, QRect, QTimer
@@ -56,16 +56,23 @@ class CustomListDialog(QDialog):
 
 	width_height_ratio = 1.5
 	height_precentage = 0.8
+	music_list_widget_height_percentage = 0.93
 
 	group_percentage = 0.1
+	search_box_height_percentage = 0.025
+	filter_size_percentage = 0.05
+	sort_type_box_height_percentage = 0.025
+	diff_button_size_percentage = 0.07
 
+	up_percentage = 0.93
 	down_percentage = 0.05
 	button_width_height_ratio = 3
 
 	def __init__(self, 
 			available_geometry: QRect, title: str, 
 			group_masks: np.ndarray, group_config: Dict[str, Dict[str, str]], 
-			checked_group: Union[int, str], 
+			checked_group: Union[int, str], search_init: str, 
+			filter_init: str, sort_type_init: str, diff_btn_config: Dict[str, Dict[str, Dict[str, Any]]], 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -73,8 +80,12 @@ class CustomListDialog(QDialog):
 		height = int(available_geometry.height() * self.height_precentage)
 		width = int(height * self.width_height_ratio)
 		self.resize(width, height)
+		up_height = int(height * self.up_percentage)
 		centerDialog(self, parent)
 		self.setModal(True)
+
+		self.music_table = pd.DataFrame()
+		self.music_tags = pd.DataFrame()
 
 		self.up_layout = QHBoxLayout()
 		self.down_layout = QHBoxLayout()
@@ -101,6 +112,33 @@ class CustomListDialog(QDialog):
 		self.down_layout.addWidget(self.cancel_button)
 		self.down_layout.addWidget(self.accept_button)
 
+		self.search_box = SearchBox(
+			int(self.search_box_height_percentage * up_height), 
+			search_init, self
+		)
+		self.music_list_widget = MusicListWidget(int(up_height * self.music_list_widget_height_percentage), True, self)
+
+		self.middle_layout.addWidget(self.search_box)
+		self.middle_layout.addWidget(self.music_list_widget)
+
+		self.filter_button = FilterButton(filter_init, int(up_height * self.filter_size_percentage), self)
+		self.sort_type_box = SortTypeBox(
+			int(up_height * self.sort_type_box_height_percentage), sort_type_init, self
+		)
+		self.rightup_layout.addWidget(self.filter_button)
+		self.rightup_layout.addWidget(self.sort_type_box)
+
+		self.display_card = DisplayCard(
+			self.music_list_widget.small_height, self.music_list_widget.large_height, up_height,
+			"", "", "", None, self
+		)
+		self.diff_button_set = DifficultyButtonSet(
+			int(up_height * self.diff_button_size_percentage), (None, None, None, None, None, None), 
+			diff_btn_config, self
+		)
+		self.rightmiddle_layout.addWidget(self.display_card)
+		self.rightmiddle_layout.addWidget(self.diff_button_set)
+
 		self.right_layout.addLayout(self.rightup_layout)
 		self.right_layout.addLayout(self.rightmiddle_layout)
 		self.right_layout.addLayout(self.rightdown_layout)
@@ -112,6 +150,10 @@ class CustomListDialog(QDialog):
 
 		self.cancel_button.clicked.connect(self.reject)
 		self.accept_button.clicked.connect(self.accept)
+
+	def initRefresh(self, music_table: pd.DataFrame, music_tag: pd.DataFrame) -> None: 
+		self.music_table = music_table
+		self.music_tag = music_tag
 
 
 class MainWindow(QMainWindow): 
@@ -175,7 +217,7 @@ class MainWindow(QMainWindow):
 			int(self.search_box_height_percentage * self.height()), 
 			self._init_config.get("search", ""), self
 		)
-		self.music_list_widget = MusicListWidget(int(self.height() * self.music_list_widget_height_percentage), self)
+		self.music_list_widget = MusicListWidget(int(self.height() * self.music_list_widget_height_percentage), parent=self)
 
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
@@ -214,7 +256,9 @@ class MainWindow(QMainWindow):
 		self.custom_list_dialog = CustomListDialog(
 			available_geometry, title="Custom List", 
 			group_masks=self.data_manager.logo_array, group_config=self.data_manager.config["group"], 
-			checked_group=self._init_config.get("group", 0), 
+			checked_group=self._init_config.get("group", 0), search_init=self._init_config.get("search", ""), 
+			filter_init=self._init_config.get("filter", {}), sort_type_init=self._init_config.get("sort_type", ""), 
+			diff_btn_config=self.data_manager.config["button"], 
 			parent=self
 		)
 
