@@ -21,7 +21,7 @@ from PyQt5.QtWidgets import (
 
 if __package__ is None or __package__ == "": 
 	from DataManager.DataManager import DataManager
-	from GUI.Basics.BasicClass import GeneralClickButton
+	from GUI.Basics.BasicClass import GeneralClickButton, OptionCheckBox
 	from GUI.Basics.Enums.Difficulty import Difficulty
 	from GUI.Basics.Enums.Group import Group
 	from GUI.Basics.Enums.FilterOptions import SongType
@@ -37,7 +37,7 @@ if __package__ is None or __package__ == "":
 	from GUI.SortTypeBox import SortTypeBox
 else: 
 	from .DataManager.DataManager import DataManager
-	from .GUI.Basics.BasicClass import GeneralClickButton
+	from .GUI.Basics.BasicClass import GeneralClickButton, OptionCheckBox
 	from .GUI.Basics.Enums.Difficulty import Difficulty
 	from .GUI.Basics.Enums.Group import Group
 	from .GUI.Basics.Enums.FilterOptions import SongType
@@ -63,6 +63,7 @@ class CustomListDialog(QDialog):
 	filter_size_percentage = 0.05
 	sort_type_box_height_percentage = 0.025
 	diff_button_size_percentage = 0.07
+	all_diff_height_percentage = 0.07
 
 	up_percentage = 0.93
 	down_percentage = 0.05
@@ -143,6 +144,9 @@ class CustomListDialog(QDialog):
 		self.rightmiddle_layout.addWidget(self.display_card)
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
+		self.all_diff = OptionCheckBox(int(up_height * self.all_diff_height_percentage), "全難易度選択", self)
+		self.rightdown_layout.addWidget(self.all_diff)
+
 		self.right_layout.addLayout(self.rightup_layout)
 		self.right_layout.addLayout(self.rightmiddle_layout)
 		self.right_layout.addLayout(self.rightdown_layout)
@@ -161,6 +165,8 @@ class CustomListDialog(QDialog):
 		self.filter_button.filter_option_changed.connect(self.refresh)
 		self.sort_type_box.currentIndexChanged.connect(self.refresh)
 		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
+
+		self.all_diff.checkbox_indicator.toggled.connect(lambda: self.music_list_widget.setAllDiff(self.all_diff.isChecked()))
 
 	def initRefresh(self, 
 			music_table: pd.DataFrame, vocal_table: pd.DataFrame, 
@@ -181,7 +187,7 @@ class CustomListDialog(QDialog):
 
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.refresh()
-		self.music_list_widget.setCurrentMusicId(music_id)
+		QTimer.singleShot(0, lambda: self.music_list_widget.setCurrentMusicId(music_id))
 
 
 	def _filterByUnit(self, music_list: pd.DataFrame, group: Group) -> pd.DataFrame: 

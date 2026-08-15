@@ -37,6 +37,8 @@ class BasicCard(QWidget):
 
 	my_layout_spacing = 5
 	checkbox_icon_ratio = 0.6
+	other_margin_percentage = 0.02
+	right_margin_percentage = 0.05
 
 	checkbox_toggled = pyqtSignal(int, Difficulty, bool)
 
@@ -116,6 +118,9 @@ class BasicCard(QWidget):
 
 		self.my_layout = QHBoxLayout(self)
 		self.my_layout.setSpacing(self.my_layout_spacing)
+		other_margin = int(self.width() * self.other_margin_percentage)
+		side_margin = int(self.width() * self.right_margin_percentage)
+		self.my_layout.setContentsMargins(other_margin, other_margin, side_margin, other_margin)
 		self.setLayout(self.my_layout)
 
 	def _np_to_pixmap(self, image: np.ndarray) -> QPixmap: 
@@ -765,7 +770,7 @@ class MusicListWidget(QStackedWidget):
 	icon_percentage = 0.10
 	label_percentage = 0.10
 
-	def __init__(self, init_height: int, has_check_box: bool=False, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, init_height: int, has_check_box: bool=False, all_diff: bool=False, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		self.small_height = int(init_height * self.small_percentage)
 		self.large_height = int(init_height * self.large_percentage)
@@ -776,6 +781,7 @@ class MusicListWidget(QStackedWidget):
 		self.addWidget(self.empty_music_list)
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 		self.checked_list: List[Tuple[int, Difficulty]] = []
+		self.all_diff = all_diff
 
 		self.normal_cache: Dict[Difficulty, 
 			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
@@ -997,10 +1003,26 @@ class MusicListWidget(QStackedWidget):
 		if current_list is not None: 
 			current_list._onScrollStop()
 
+	def setAllDiff(self, all_diff: bool) -> None: 
+		logging.debug("Setting all_diff to %s", all_diff)
+		self.all_diff = all_diff
+
 	def setCheckBox(self, music_id: int, difficulty: Difficulty, checked: bool) -> None: 
-		self.checked_list.append((music_id, difficulty))
-		self.checked_list = list(set(self.checked_list))
+		checked_set = set(self.checked_list)
 		for index in range(self.count()): 
 			music_list_widget: MusicList = self.widget(index)
 			if music_list_widget is not None: 
-				music_list_widget.setCheckBox(music_id, difficulty, checked)
+				if self.all_diff: 
+					for diff in Difficulty: 
+						music_list_widget.setCheckBox(music_id, diff, checked)
+						if checked: 
+							checked_set.add((music_id, diff))
+						else: 
+							checked_set.discard((music_id, diff))
+				else:
+					music_list_widget.setCheckBox(music_id, difficulty, checked)
+					if checked: 
+						checked_set.add((music_id, difficulty))
+					else: 
+						checked_set.discard((music_id, difficulty))
+		self.checked_list = list(checked_set)
