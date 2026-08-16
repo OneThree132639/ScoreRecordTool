@@ -250,6 +250,8 @@ class CustomListDialog(QDialog):
 		return music_list
 
 	def _getMusicLevels(self, music_id: int) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
+		if music_id == 0: 
+			return (None, None, None, None, None, None)
 		diff_list: pd.DataFrame = self.music_table.copy()
 		diff_list = diff_list[diff_list["id_musics"] == music_id].set_index("musicDifficulty")
 		diffs = ("easy", "normal", "hard", "expert", "master", "append")
@@ -327,20 +329,27 @@ class CustomListDialog(QDialog):
 				self.music_list_widget.moveIndex(1)
 			elif event.key() == Qt.Key.Key_Left: 
 				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				logging.debug("current_diff_index: %d", current_diff_index)
 				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				while True: 
+				if all(diff is None for diff in difficulties): 
 					current_diff_index = (current_diff_index - 1) % len(difficulties)
-					if difficulties[current_diff_index] is not None: 
-						break
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index - 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
 				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
 				self.refresh()
 			elif event.key() == Qt.Key.Key_Right: 
 				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
 				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				while True: 
+				if all(diff is None for diff in difficulties): 
 					current_diff_index = (current_diff_index + 1) % len(difficulties)
-					if difficulties[current_diff_index] is not None: 
-						break
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index + 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
 				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
 				self.refresh()
 		return super().eventFilter(watched, event)
@@ -670,6 +679,8 @@ class MainWindow(QMainWindow):
 
 
 	def _getMusicLevels(self, music_id: int) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
+		if music_id == 0: 
+			return (None, None, None, None, None, None)
 		music_table = self.data_manager.music_table
 		assert music_table is not None
 		diff_list: pd.DataFrame = music_table.copy()
@@ -818,20 +829,27 @@ class MainWindow(QMainWindow):
 				self.music_list_widget.moveIndex(1)
 			elif event.key() == Qt.Key.Key_Left: 
 				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				logging.debug("current_diff_index: %d", current_diff_index)
 				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				while True: 
+				if all(diff is None for diff in difficulties): 
 					current_diff_index = (current_diff_index - 1) % len(difficulties)
-					if difficulties[current_diff_index] is not None: 
-						break
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index - 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
 				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
 				self.refresh()
 			elif event.key() == Qt.Key.Key_Right: 
 				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
 				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				while True: 
+				if all(diff is None for diff in difficulties): 
 					current_diff_index = (current_diff_index + 1) % len(difficulties)
-					if difficulties[current_diff_index] is not None: 
-						break
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index + 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
 				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
 				self.refresh()
 			
