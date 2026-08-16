@@ -52,17 +52,79 @@ else:
 	from .GUI.RandomDialog import RandomWidget
 	from .GUI.SortTypeBox import SortTypeBox
 
-class CustomListDialog(QDialog): 
+class PublicMembers: 
 
 	width_height_ratio = 1.5
-	height_precentage = 0.8
-	music_list_widget_height_percentage = 0.93
+	height_percentage = 0.8
 
 	group_percentage = 0.1
 	search_box_height_percentage = 0.025
+	music_list_widget_height_percentage = 0.93
 	filter_size_percentage = 0.05
 	sort_type_box_height_percentage = 0.025
 	diff_button_size_percentage = 0.07
+
+	@classmethod
+	def _filterByUnit(cls, music_list: Optional[pd.DataFrame], music_tags: Optional[pd.DataFrame], group: Group) -> pd.DataFrame: 
+		assert music_list is not None
+		assert music_tags is not None 
+		mapping = {
+			Group.ALL: 0, Group.VS: 1, Group.LN: 6, Group.MMJ: 4, Group.VBS: 3, Group.WS: 2, Group.NG: 5, Group.OTHER: 7
+		}
+		music_ids = music_tags[music_tags["seq"] == mapping[group]]["musicId"].unique()
+		return music_list[music_list["id_musics"].isin(music_ids)]
+
+	@classmethod
+	def _filterByCustomGroup(cls, music_list: pd.DataFrame, custom_config: List[Dict[str, Any]], group: str) -> pd.DataFrame: 
+		result = next((item for item in custom_config if item["title"] == group), None)
+		if result is None:
+			logging.error("Custom group '%s' not found in custom-groups.", group)
+			raise ValueError(f"Custom group '{group}' not found in custom-groups.")
+		filter_df = pd.DataFrame(result["id-diff-list"], columns=["id_musics", "musicDifficulty"])
+		merge_result = pd.merge(music_list, filter_df, on=["id_musics", "musicDifficulty"], how="inner")
+		return merge_result
+
+	@classmethod
+	def _filterByFilterOptions(cls, 
+			music_list: pd.DataFrame, music_table: Optional[pd.DataFrame], filter_option: SongType
+		) -> pd.DataFrame: 
+		assert music_table is not None
+		match filter_option: 
+			case SongType.ALL: 
+				pass
+			case SongType.COMMISSIONED: 
+				music_list = music_list[(music_list["seq"] // 100000).isin((17, 21, 22, 23, 24, 25, 26, 27))]
+			case SongType.HAS_APPEND: 
+				music_ids = music_table[music_table["musicDifficulty"] == "append"]["id_musics"].unique()
+				music_list = music_list[music_list["id_musics"].isin(music_ids)]
+		return music_list
+
+	@classmethod
+	def _filterBySearchContent(cls, music_list: pd.DataFrame, search_content: str) -> pd.DataFrame: 
+		bool_df: pd.DataFrame = music_list[[
+			"title", "pronunciation", "pronunciationKatakana", "lyricist", "composer", 
+			"arranger", "artistsName", "artistsPronunciation", "artistsPronunciationKatakana"
+			
+		]].apply(lambda col: col.astype(str).str.contains(search_content, na=False))
+		mask: pd.Series= bool_df.any(axis=1)
+		result: pd.DataFrame = music_list[mask]
+		return result
+
+	@classmethod
+	def _getMusicLevels(cls, 
+			music_table: Optional[pd.DataFrame], music_id: int
+		) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
+		if music_id == 0: 
+			return (None, None, None, None, None, None)
+		assert music_table is not None
+		diff_list: pd.DataFrame = music_table.copy()
+		diff_list = diff_list[diff_list["id_musics"] == music_id].set_index("musicDifficulty")
+		diffs = ("easy", "normal", "hard", "expert", "master", "append")
+		difficulties = tuple(diff_list.loc[diff, "playLevel"] if diff in diff_list.index else None for diff in diffs)
+		return difficulties # type: ignore
+
+class CustomListDialog(QDialog): 
+
 	all_diff_height_percentage = 0.05
 	list_title_height_percentage = 0.025
 
@@ -80,8 +142,8 @@ class CustomListDialog(QDialog):
 		) -> None: 
 		super().__init__(parent)
 		self.setWindowTitle(title)
-		height = int(available_geometry.height() * self.height_precentage)
-		width = int(height * self.width_height_ratio)
+		height = int(available_geometry.height() * PublicMembers.height_percentage)
+		width = int(height * PublicMembers.width_height_ratio)
 		self.resize(width, height)
 		up_height = int(height * self.up_percentage)
 		centerDialog(self, parent)
@@ -105,7 +167,7 @@ class CustomListDialog(QDialog):
 		self.setLayout(self.my_layout)
 
 		self.group_button_set = GroupButtonSet(
-			int(self.group_percentage * self.width()), 
+			int(PublicMembers.group_percentage * self.width()), 
 			group_masks=group_masks, btn_config=group_config, 
 			checked_group=checked_group, parent=self
 		)
@@ -113,26 +175,26 @@ class CustomListDialog(QDialog):
 
 		button_height = int(height * self.down_percentage)
 		button_width = button_height * self.button_width_height_ratio
-		self.cancel_button = GeneralClickButton(button_width, button_height, QColor(255, 255, 255), "キャンセル", self)
-		self.accept_button = GeneralClickButton(button_width, button_height, QColor("#77EEDD"), "決定", self)
+		self.cancel_button = GeneralClickButton(button_width, button_height, QColor(255, 255, 255), "キャンセル", parent=self)
+		self.accept_button = GeneralClickButton(button_width, button_height, QColor("#77EEDD"), "決定", parent=self)
 		self.down_layout.addWidget(self.cancel_button)
 		self.down_layout.addWidget(self.accept_button)
 
 		self.search_box = SearchBox(
-			int(self.search_box_height_percentage * up_height), 
+			int(PublicMembers.search_box_height_percentage * up_height), 
 			search_init, self
 		)
 		self.music_list_widget = MusicListWidget(
-			int(up_height * self.music_list_widget_height_percentage), True, 
+			int(up_height * PublicMembers.music_list_widget_height_percentage), True, 
 			get_all_diff_func=self.getAllDifficulties, parent=self
 		)
 
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
 
-		self.filter_button = FilterButton(filter_init, int(up_height * self.filter_size_percentage), self)
+		self.filter_button = FilterButton(filter_init, int(up_height * PublicMembers.filter_size_percentage), parent=self)
 		self.sort_type_box = SortTypeBox(
-			int(up_height * self.sort_type_box_height_percentage), sort_type_init, self
+			int(up_height * PublicMembers.sort_type_box_height_percentage), sort_type_init, parent=self
 		)
 		self.rightup_layout.addWidget(self.filter_button)
 		self.rightup_layout.addWidget(self.sort_type_box)
@@ -142,14 +204,14 @@ class CustomListDialog(QDialog):
 			"", "", "", None, self
 		)
 		self.diff_button_set = DifficultyButtonSet(
-			int(up_height * self.diff_button_size_percentage), (None, None, None, None, None, None), 
-			diff_btn_config, self
+			int(up_height * PublicMembers.diff_button_size_percentage), (None, None, None, None, None, None), 
+			diff_btn_config, parent=self
 		)
 		self.rightmiddle_layout.addWidget(self.display_card)
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
-		self.all_diff = OptionCheckBox(int(up_height * self.all_diff_height_percentage), "全難易度選択", self)
-		self.list_title = CustomListTitleBox(int(up_height * self.list_title_height_percentage), "", self)
+		self.all_diff = OptionCheckBox(int(up_height * self.all_diff_height_percentage), "全難易度選択", parent=self)
+		self.list_title = CustomListTitleBox(int(up_height * self.list_title_height_percentage), "", parent=self)
 		self.rightdown_layout.addWidget(self.all_diff)
 		self.rightdown_layout.addWidget(self.list_title)
 
@@ -201,46 +263,15 @@ class CustomListDialog(QDialog):
 		self.music_list_widget.updateCheckbox()
 		QTimer.singleShot(0, lambda: self.music_list_widget.setCurrentMusicId(music_id))
 
-
-	def _filterByUnit(self, music_list: pd.DataFrame, group: Group) -> pd.DataFrame: 
-		music_tags = self.music_tags
-		mapping = {
-			Group.ALL: 0, Group.VS: 1, Group.LN: 6, Group.MMJ: 4, Group.VBS: 3, Group.WS: 2, Group.NG: 5, Group.OTHER: 7
-		}
-		music_ids = music_tags[music_tags["seq"] == mapping[group]]["musicId"].unique()
-		return music_list[music_list["id_musics"].isin(music_ids)]
-
-	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: SongType) -> pd.DataFrame: 
-		match filter_option: 
-			case SongType.ALL: 
-				pass
-			case SongType.COMMISSIONED: 
-				music_list = music_list[(music_list["seq"] // 100000).isin((17, 21, 22, 23, 24, 25, 26, 27))]
-			case SongType.HAS_APPEND: 
-				music_table: pd.DataFrame = self.music_table.copy()
-				music_ids = music_table[music_table["musicDifficulty"] == "append"]["id_musics"].unique()
-				music_list = music_list[music_list["id_musics"].isin(music_ids)]
-		return music_list
-
-	def _filterBySearchContent(self, music_list: pd.DataFrame, search_content: str) -> pd.DataFrame: 
-		bool_df: pd.DataFrame = music_list[[
-			"title", "pronunciation", "pronunciationKatakana", "lyricist", "composer", 
-			"arranger", "artistsName", "artistsPronunciation", "artistsPronunciationKatakana"
-			
-		]].apply(lambda col: col.astype(str).str.contains(search_content, na=False))
-		mask: pd.Series= bool_df.any(axis=1)
-		result: pd.DataFrame = music_list[mask]
-		return result
-
 	def _filtering(self, 
 			group: Group, difficulty: Difficulty, filter_option: SongType, 
 			search_content: str, sort_type: SortType
 		) -> pd.DataFrame: 
 		music_table: pd.DataFrame = self.music_table.copy()
 		music_list: pd.DataFrame = music_table[music_table["musicDifficulty"] == difficulty.value.lower()]
-		music_list = self._filterByUnit(music_list, group)
-		music_list = self._filterByFilterOptions(music_list, filter_option)
-		music_list = self._filterBySearchContent(music_list, search_content)
+		music_list = PublicMembers._filterByUnit(music_list, self.music_tags, group)
+		music_list = PublicMembers._filterByFilterOptions(music_list, self.music_table, filter_option)
+		music_list = PublicMembers._filterBySearchContent(music_list, search_content)
 
 		sort_tuple = ("seq", "publishedAt", "pronunciation", "playLevel")
 		sort_labels = [sort_tuple[sort_type.toIndex()], "seq"]
@@ -249,21 +280,12 @@ class CustomListDialog(QDialog):
 
 		return music_list
 
-	def _getMusicLevels(self, music_id: int) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
-		if music_id == 0: 
-			return (None, None, None, None, None, None)
-		diff_list: pd.DataFrame = self.music_table.copy()
-		diff_list = diff_list[diff_list["id_musics"] == music_id].set_index("musicDifficulty")
-		diffs = ("easy", "normal", "hard", "expert", "master", "append")
-		difficulties = tuple(diff_list.loc[diff, "playLevel"] if diff in diff_list.index else None for diff in diffs)
-		return difficulties # type: ignore
-
 	def refreshCurrentIndex(self, music_id: int) -> None: 
 		difficulty = self.diff_button_set.getDifficulty()
 		if len(self.music_list_widget.getCurrentMusicList()) == 0: 
 			difficulties = (None, None, None, None, None, None)
 		else: 
-			difficulties = self._getMusicLevels(music_id)
+			difficulties = PublicMembers._getMusicLevels(self.music_table, music_id)
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
@@ -292,7 +314,7 @@ class CustomListDialog(QDialog):
 			else: 
 				current_index = music_list.set_index("id_musics").index.get_loc(music_id)
 
-		difficulties = self._getMusicLevels(music_id)
+		difficulties = PublicMembers._getMusicLevels(self.music_table, music_id)
 		vocal_list = self.vocal_table
 
 		self.filter_button.setNormalState(search_content, filter_options)
@@ -319,40 +341,12 @@ class CustomListDialog(QDialog):
 			assert isinstance(event, QMouseEvent)
 			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.search_box.clearFocus()
+				return True
 			if not self.list_title.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.list_title.clearFocus()
-		if event.type() == QEvent.Type.KeyPress: 
-			assert isinstance(event, QKeyEvent)
-			if event.key() == Qt.Key.Key_Up: 
-				self.music_list_widget.moveIndex(-1)
-			elif event.key() == Qt.Key.Key_Down: 
-				self.music_list_widget.moveIndex(1)
-			elif event.key() == Qt.Key.Key_Left: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				logging.debug("current_diff_index: %d", current_diff_index)
-				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index - 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index - 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-			elif event.key() == Qt.Key.Key_Right: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index + 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index + 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
+				return True
 		return super().eventFilter(watched, event)
+
 
 	def getCurrentCheckedIdDiffList(self) -> List[Tuple[int, str]]: 
 		id_diff_list = self.music_list_widget.checked_list.copy()
@@ -368,17 +362,46 @@ class CustomListDialog(QDialog):
 	def setCurrentTitle(self, title: str) -> None: 
 		self.list_title.setText(title)
 
+	def event(self, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.KeyPress: 
+			assert isinstance(event, QKeyEvent)
+			if event.key() == Qt.Key.Key_Up: 
+				self.music_list_widget.moveIndex(-1)
+				return True
+			elif event.key() == Qt.Key.Key_Down: 
+				self.music_list_widget.moveIndex(1)
+				return True
+			elif event.key() == Qt.Key.Key_Left: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				logging.debug("current_diff_index: %d", current_diff_index)
+				difficulties = PublicMembers._getMusicLevels(self.music_table, self.music_list_widget.getCurrentMusicId())
+				if all(diff is None for diff in difficulties): 
+					current_diff_index = (current_diff_index - 1) % len(difficulties)
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index - 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+				return True
+			elif event.key() == Qt.Key.Key_Right: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				difficulties = PublicMembers._getMusicLevels(self.music_table, self.music_list_widget.getCurrentMusicId())
+				if all(diff is None for diff in difficulties): 
+					current_diff_index = (current_diff_index + 1) % len(difficulties)
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index + 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+				return True
+		return super().event(event)
+
 class MainWindow(QMainWindow): 
 
-	width_height_ratio = 1.5
-	height_precentage = 0.8
-
-	group_percentage = 0.1
-	search_box_height_percentage = 0.025
-	music_list_widget_height_percentage = 0.93
-	filter_size_percentage = 0.05
-	sort_type_box_height_percentage = 0.025
-	diff_button_size_percentage = 0.07
 	random_height_percentage = 0.07
 
 	update_done = pyqtSignal()
@@ -390,8 +413,8 @@ class MainWindow(QMainWindow):
 		): 
 		super().__init__(parent)
 		self.setWindowTitle("Score Record Tool")
-		height = int(available_geometry.height() * self.height_precentage)
-		width = int(height * self.width_height_ratio)
+		height = int(available_geometry.height() * PublicMembers.height_percentage)
+		width = int(height * PublicMembers.width_height_ratio)
 		self.resize(width, height)
 		centerDialog(self, parent)
 
@@ -419,7 +442,7 @@ class MainWindow(QMainWindow):
 
 		custom_list = [elem["title"] for elem in self._init_config.get("custom-groups", [])]
 		self.group_button_widget = GroupButtonWidget(
-			int(self.group_percentage * self.width()), 
+			int(PublicMembers.group_percentage * self.width()), 
 			self.data_manager.logo_array, self.data_manager.loadBinaryArray("random-setting-array"), 
 			self.data_manager.config["group"], 
 			checked_group=self._init_config.get("group", 0), 
@@ -429,35 +452,41 @@ class MainWindow(QMainWindow):
 		self.left_layout.addWidget(self.group_button_widget)
 
 		self.search_box = SearchBox(
-			int(self.search_box_height_percentage * self.height()), 
-			self._init_config.get("search", ""), self
+			int(PublicMembers.search_box_height_percentage * self.height()), 
+			self._init_config.get("search", ""), parent=self
 		)
-		self.music_list_widget = MusicListWidget(int(self.height() * self.music_list_widget_height_percentage), parent=self)
+		self.music_list_widget = MusicListWidget(
+			int(self.height() * PublicMembers.music_list_widget_height_percentage), parent=self
+		)
 
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
 
 		self.filter_button = FilterButton(
-			self._init_config.get("filter", {}), int(self.height() * self.filter_size_percentage), self
+			self._init_config.get("filter", {}), 
+			int(self.height() * PublicMembers.filter_size_percentage), parent=self
 		)
-		self.sort_type_box = SortTypeBox(int(self.height() * self.sort_type_box_height_percentage), self._init_config.get("sort_type", ""), self)
+		self.sort_type_box = SortTypeBox(
+			int(self.height() * PublicMembers.sort_type_box_height_percentage), 
+			self._init_config.get("sort_type", ""), parent=self
+		)
 		self.rightup_layout.addWidget(self.filter_button)
 		self.rightup_layout.addWidget(self.sort_type_box)
 
 		self.display_card = DisplayCard(
 			self.music_list_widget.small_height, self.music_list_widget.large_height, self.height(),
-			"", "", "", None, self
+			"", "", "", None, parent=self
 		)
 		self.diff_button_set = DifficultyButtonSet(
-			int(self.height() * self.diff_button_size_percentage), (None, None, None, None, None, None), 
-			self.data_manager.config["button"], self
+			int(self.height() * PublicMembers.diff_button_size_percentage), (None, None, None, None, None, None), 
+			self.data_manager.config["button"], parent=self
 		)
 		self.rightmiddle_layout.addWidget(self.display_card)
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
 		self.random_widget = RandomWidget(
 			int(self.height() * self.random_height_percentage), 
-			self.data_manager.loadBinaryArray, self._init_config.get("random", {}), self
+			self.data_manager.loadBinaryArray, self._init_config.get("random", {}), parent=self
 		)
 		self.rightdown_layout.addWidget(self.random_widget)
 		
@@ -614,47 +643,6 @@ class MainWindow(QMainWindow):
 
 		self._initRefresh()
 
-	def _filterByUnit(self, music_list: pd.DataFrame, group: Group) -> pd.DataFrame: 
-		music_tags = self.data_manager.musicTags
-		assert music_tags is not None
-		mapping = {
-			Group.ALL: 0, Group.VS: 1, Group.LN: 6, Group.MMJ: 4, Group.VBS: 3, Group.WS: 2, Group.NG: 5, Group.OTHER: 7
-		}
-		music_ids = music_tags[music_tags["seq"] == mapping[group]]["musicId"].unique()
-		return music_list[music_list["id_musics"].isin(music_ids)]
-
-	def _filterByCustomGroup(self, music_list: pd.DataFrame, group: str) -> pd.DataFrame: 
-		result = next((item for item in self.config["custom-groups"] if item["title"] == group), None)
-		if result is None:
-			logging.error("Custom group '%s' not found in custom-groups.", group)
-			raise ValueError(f"Custom group '{group}' not found in custom-groups.")
-		filter_df = pd.DataFrame(result["id-diff-list"], columns=["id_musics", "musicDifficulty"])
-		merge_result = pd.merge(music_list, filter_df, on=["id_musics", "musicDifficulty"], how="inner")
-		return merge_result
-
-	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: SongType) -> pd.DataFrame: 
-		match filter_option: 
-			case SongType.ALL: 
-				pass
-			case SongType.COMMISSIONED: 
-				music_list = music_list[(music_list["seq"] // 100000).isin((17, 21, 22, 23, 24, 25, 26, 27))]
-			case SongType.HAS_APPEND: 
-				music_table = self.data_manager.music_table
-				assert music_table is not None
-				music_ids = music_table[music_table["musicDifficulty"] == "append"]["id_musics"].unique()
-				music_list = music_list[music_list["id_musics"].isin(music_ids)]
-		return music_list
-
-	def _filterBySearchContent(self, music_list: pd.DataFrame, search_content: str) -> pd.DataFrame: 
-		bool_df: pd.DataFrame = music_list[[
-			"title", "pronunciation", "pronunciationKatakana", "lyricist", "composer", 
-			"arranger", "artistsName", "artistsPronunciation", "artistsPronunciationKatakana"
-			
-		]].apply(lambda col: col.astype(str).str.contains(search_content, na=False))
-		mask: pd.Series= bool_df.any(axis=1)
-		result: pd.DataFrame = music_list[mask]
-		return result
-
 	def _filtering(self, 
 			group: Union[Group, str], difficulty: Difficulty, filter_option: SongType, 
 			search_content: str, sort_type: SortType
@@ -664,11 +652,11 @@ class MainWindow(QMainWindow):
 		music_list: pd.DataFrame = music_table.copy()
 		music_list: pd.DataFrame = music_list[music_list["musicDifficulty"] == difficulty.value.lower()]
 		if isinstance(group, Group): 
-			music_list = self._filterByUnit(music_list, group)
+			music_list = PublicMembers._filterByUnit(music_list, self.data_manager.musicTags, group)
 		elif isinstance(group, str): 
-			music_list = self._filterByCustomGroup(music_list, group)
-		music_list = self._filterByFilterOptions(music_list, filter_option)
-		music_list = self._filterBySearchContent(music_list, search_content)
+			music_list = PublicMembers._filterByCustomGroup(music_list, self.config["custom-groups"], group)
+		music_list = PublicMembers._filterByFilterOptions(music_list, self.data_manager.music_table, filter_option)
+		music_list = PublicMembers._filterBySearchContent(music_list, search_content)
 
 		sort_tuple = ("seq", "publishedAt", "pronunciation", "playLevel")
 		sort_labels = [sort_tuple[sort_type.toIndex()], "seq"]
@@ -677,24 +665,12 @@ class MainWindow(QMainWindow):
 
 		return music_list
 
-
-	def _getMusicLevels(self, music_id: int) -> Tuple[Optional[int], Optional[int], Optional[int], Optional[int], Optional[int], Optional[int]]: 
-		if music_id == 0: 
-			return (None, None, None, None, None, None)
-		music_table = self.data_manager.music_table
-		assert music_table is not None
-		diff_list: pd.DataFrame = music_table.copy()
-		diff_list = diff_list[diff_list["id_musics"] == music_id].set_index("musicDifficulty")
-		diffs = ("easy", "normal", "hard", "expert", "master", "append")
-		difficulties = tuple(diff_list.loc[diff, "playLevel"] if diff in diff_list.index else None for diff in diffs)
-		return difficulties # type: ignore
-
 	def refreshCurrentIndex(self, music_id: int) -> None: 
 		difficulty = self.diff_button_set.getDifficulty()
 		if len(self.music_list_widget.getCurrentMusicList()) == 0: 
 			difficulties = (None, None, None, None, None, None)
 		else: 
-			difficulties = self._getMusicLevels(music_id)
+			difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, music_id)
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
@@ -723,7 +699,7 @@ class MainWindow(QMainWindow):
 			else: 
 				current_index = music_list.set_index("id_musics").index.get_loc(music_id)
 
-		difficulties = self._getMusicLevels(music_id)
+		difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, music_id)
 		vocal_list = self.data_manager.vocal_table
 		assert vocal_list is not None
 
@@ -821,38 +797,7 @@ class MainWindow(QMainWindow):
 			assert isinstance(event, QMouseEvent)
 			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.search_box.clearFocus()
-		if event.type() == QEvent.Type.KeyPress: 
-			assert isinstance(event, QKeyEvent)
-			if event.key() == Qt.Key.Key_Up: 
-				self.music_list_widget.moveIndex(-1)
-			elif event.key() == Qt.Key.Key_Down: 
-				self.music_list_widget.moveIndex(1)
-			elif event.key() == Qt.Key.Key_Left: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				logging.debug("current_diff_index: %d", current_diff_index)
-				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index - 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index - 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-			elif event.key() == Qt.Key.Key_Right: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index + 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index + 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-			
+				return True
 		return super().eventFilter(watched, event)
 
 	def _onAddGroupButtonClicked(self) -> None: 
@@ -966,3 +911,41 @@ class MainWindow(QMainWindow):
 			break
 
 		self._saveConfig()
+
+	def event(self, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.KeyPress: 
+			assert isinstance(event, QKeyEvent)
+			if event.key() == Qt.Key.Key_Up: 
+				self.music_list_widget.moveIndex(-1)
+				return True
+			elif event.key() == Qt.Key.Key_Down: 
+				self.music_list_widget.moveIndex(1)
+				return True
+			elif event.key() == Qt.Key.Key_Left: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				logging.debug("current_diff_index: %d", current_diff_index)
+				difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, self.music_list_widget.getCurrentMusicId())
+				if all(diff is None for diff in difficulties): 
+					current_diff_index = (current_diff_index - 1) % len(difficulties)
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index - 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+				return True
+			elif event.key() == Qt.Key.Key_Right: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, self.music_list_widget.getCurrentMusicId())
+				if all(diff is None for diff in difficulties): 
+					current_diff_index = (current_diff_index + 1) % len(difficulties)
+				else: 
+					while True: 
+						current_diff_index = (current_diff_index + 1) % len(difficulties)
+						if difficulties[current_diff_index] is not None: 
+							break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+				return True
+		return super().event(event)
