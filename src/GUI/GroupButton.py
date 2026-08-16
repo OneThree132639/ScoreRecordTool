@@ -2,10 +2,10 @@ import logging
 import numpy as np
 
 from scipy.ndimage import binary_erosion
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	pyqtSignal, QPoint, Qt, QRect, QRectF, QSize
+	pyqtBoundSignal, pyqtSignal, QMetaObject, QObject, QPoint, Qt, QRect, QRectF, QSize
 )
 from PyQt5.QtGui import (
 	QBrush, QColor, QFont, QFontMetrics, QImage, QPainter, QPaintEvent, 
@@ -138,18 +138,19 @@ class TextButton(GroupButton):
 
 	unchecked_color = "#FFFFFF"
 	checked_color = "#A1F4EB"
-	padding_percentage = 0.03
+	margin_percentage = 0.03
+	leading_percentage = 0.00
 	short_percentage = 0.20
 	long_percentage = 0.15
 	min_height_percentage = 0.4
-	padding_percentage = 0.03
 
 	def __init__(self, group: Union[Group, str], icon_size: int, text: str, parent: Optional[QWidget]=None) -> None: 
 		super().__init__(group, icon_size, parent)
 		self.my_text = text
 		self.icon_size = icon_size
 		self.min_height = int(icon_size * self.min_height_percentage)
-		self.padding = int(icon_size * self.padding_percentage)
+		self.margin = int(icon_size * self.margin_percentage)
+		self.leading = int(icon_size * self.leading_percentage)
 		self.short_size = int(icon_size * self.short_percentage)
 		self.long_size = int(icon_size * self.long_percentage)
 
@@ -189,8 +190,7 @@ class TextButton(GroupButton):
 		).format(color.name(), font_size, self.my_text)
 
 		self.document.setHtml(html_text)
-		padding = int(self.icon_size * self.padding_percentage)
-		rect = self.rect().adjusted(padding, padding, -padding, -padding)
+		rect = self.rect().adjusted(self.margin, self.margin, -self.margin, -self.margin)
 		self.document.setTextWidth(rect.width())
 		self.document.size()
 		lines = self.getWrappedLines(self.document)
@@ -199,9 +199,8 @@ class TextButton(GroupButton):
 		font.setFamily("FOT-RodinNTLG Pro")
 		metrics = QFontMetrics(font)
 		height = metrics.height()
-		leading = metrics.leading() 
-		total_height = len(lines) * height + (len(lines) - 1) * leading + 2 * padding
-		setting_height = max(total_height, self.min_height + 2 * padding)
+		total_height = len(lines) * height + (len(lines) - 1) * self.leading + 2 * self.margin
+		setting_height = max(total_height, self.min_height + 2 * self.margin)
 		self.updateSize(self.icon_size, setting_height)
 		start = (setting_height - total_height) / 2
 		painter.setPen(QPen(color))
@@ -210,15 +209,47 @@ class TextButton(GroupButton):
 		for idx, line in enumerate(lines): 
 			# line_width = metrics.boundingRect(line).width()
 			line_width = metrics.horizontalAdvance(line)
-			x = (rect.width() - line_width) / 2 + padding
-			y = start + idx * (height + leading) + padding
+			x = (rect.width() - line_width) / 2 + self.margin
+			y = start + idx * (height + self.leading) + self.margin
 			target_rect = QRectF(x, y, line_width, height)
 			painter.drawText(target_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, line)
+		painter.end()
 
 	def rename(self, new_text: str) -> None: 
 		self.my_text = new_text
 		self.my_group = new_text
 		self.update()
+
+class SafeSignalConnectionManager: 
+
+	def __init__(self, sender: QWidget, signal: pyqtBoundSignal, slot: Callable, cleanup_callback: Optional[Callable]=None) -> None: 
+		self.sender = sender
+		self.signal = signal
+		self.slot = slot
+		self.connection = None
+		self.cleanup_callback = cleanup_callback
+		self._connected = False
+
+		self.connect()
+
+		def onDestroyed(): 
+			self.disconnect()
+			if self.cleanup_callback is not None: 
+				self.cleanup_callback()
+
+	def connect(self) -> None: 
+		if not self._connected: 
+			self.connection = self.signal.connect(self.slot)
+			self._connected = True
+
+	def disconnect(self) -> None: 
+		if self._connected and self.connection is not None: 
+			try: 
+				self.signal.disconnect(self.slot)
+			except Exception as e: 
+				logging.warning("Failed to disconnect signal: %s", e)
+			self._connected = False
+			self.connection = None
 
 
 class GroupButtonSet(QListWidget): 
@@ -267,6 +298,7 @@ class GroupButtonSet(QListWidget):
 			self.vbs_button, self.ws_button, self.ng_button,
 			self.other_button
 		]
+		self.safe_connections: Dict[int, SafeSignalConnectionManager] = {}
 
 		for btn_name in custom_list: 
 			btn = TextButton(btn_name, btn_size, btn_name, self)
@@ -281,7 +313,7 @@ class GroupButtonSet(QListWidget):
 			self.addItem(item)
 			self.setItemWidget(item, container)
 
-			btn.size_changed.connect(lambda: self.updateItemSize(item, btn))
+			self.safeConnect(btn, item)
 
 			if btn.matchGroup(checked_group): 
 				btn.setChecked(True)
@@ -292,6 +324,33 @@ class GroupButtonSet(QListWidget):
 		palette.setColor(QPalette.ColorRole.Base, color)
 		self.setPalette(palette)
 		self.setAutoFillBackground(True)
+
+	def _isValid(self, object: Optional[Union[QWidget, QListWidgetItem]]) -> bool: 
+		try: 
+			return object is not None and hasattr(object, "isVisible")
+		except: 
+			return False
+
+	def _cleanupButton(self, button: GroupButton) -> None: 
+		button_id = id(button)
+		if button_id in self.safe_connections: 
+			del self.safe_connections[button_id]
+
+	def safeConnect(self, button: GroupButton, item: QListWidgetItem) -> None: 
+		def safeSlot(): 
+			if not self._isValid(button) or not self._isValid(item): 
+				return
+			try: 
+				self.updateItemSize(item, button)
+			except RuntimeError as e: 
+				logging.warning("Runtime Error occurred when updating item size: %s", e)
+
+		connection = SafeSignalConnectionManager(
+			button, button.size_changed, safeSlot, cleanup_callback=lambda: self._cleanupButton(button)
+		)
+		button_id = id(button)
+		self.safe_connections[button_id] = connection
+
 
 	def updateItemSize(self, item: QListWidgetItem, btn: GroupButton) -> None: 
 		item.setSizeHint(btn.sizeHint())
@@ -321,6 +380,8 @@ class GroupButtonSet(QListWidget):
 		item, container = self._createCenteredItem(btn)
 		self.addItem(item)
 		self.setItemWidget(item, container)
+
+		self.safeConnect(btn, item)
 
 	def removeButton(self, name: str) -> None: 
 		for i, btn in enumerate(self.button_list): 
@@ -562,9 +623,10 @@ class GroupButtonWidget(QWidget):
 		padding = int(btn_size * self.padding_percentage)
 		self.setFixedWidth(btn_size + 2 * padding)
 
-		self.group_button_set.button_group.buttonClicked.connect(self._onGroupButtonClicked)
-		self.sub_button.clicked.connect(lambda: logging.debug("sub button clicked. "))
+		self.group_button_set.button_group.buttonClicked.connect(self._onGroupButtonClicked) 
 		self.setting_button.clicked.connect(lambda: logging.debug("setting button clicked. "))
+
+		self._onGroupButtonClicked()
 
 	def _onGroupButtonClicked(self) -> None: 
 		current_group = self.group_button_set.getCurrentGroup()
@@ -583,3 +645,6 @@ class GroupButtonWidget(QWidget):
 
 	def addButton(self, group_name: str) -> None: 
 		self.group_button_set.addButton(group_name)
+
+	def removeButton(self, group_name: str) -> None: 
+		self.group_button_set.removeButton(group_name)

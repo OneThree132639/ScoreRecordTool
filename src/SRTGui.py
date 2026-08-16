@@ -186,8 +186,10 @@ class CustomListDialog(QDialog):
 
 	def initLoad(self, 
 			group: Group, search_content: str, filter_option: SongType, 
-			sort_type: SortType, difficulty: Difficulty, music_id: int
+			sort_type: SortType, difficulty: Difficulty, music_id: int, 
+			title: str=""
 		) -> None: 
+		self.list_title.setText(title)
 		self.group_button_set.setCurrentGroup(group)
 		self.search_box.setText(search_content)
 		self.filter_button.setCurrentFilterOptions(filter_option)
@@ -450,6 +452,7 @@ class MainWindow(QMainWindow):
 		self.random_widget.random_button.clicked.connect(self.randomRolling)
 
 		self.group_button_widget.add_button.clicked.connect(self._onAddGroupButtonClicked)
+		self.group_button_widget.sub_button.clicked.connect(self._onSubGroupButtonClicked)
 
 		self.installEventFilter(self)
 
@@ -823,4 +826,21 @@ class MainWindow(QMainWindow):
 				logging.debug("Custom list dialog rejected. ")
 			break
 
+		self._saveConfig()
+
+	def _onSubGroupButtonClicked(self) -> None: 
+		group = self.group_button_widget.getCurrentGroup()
+		assert isinstance(group, str)
+		msg = QMessageBox(self)
+		msg.setIcon(QMessageBox.Icon.Question)
+		msg.setWindowTitle("Delete Custom Group")
+		msg.setText(f"Are you sure you want to delete the custom group '{group}'? This action cannot be undone.")
+		msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No) # type: ignore
+		centerDialog(msg, self)
+		if msg.exec() == QMessageBox.StandardButton.Yes:
+			self.group_button_widget.removeButton(group)
+			self.config["custom-groups"].remove(next((item for item in self.config["custom-groups"] if item["title"] == group), None))
+			self.group_button_widget.group_button_set.setCurrentGroup(Group.ALL)
+			self.group_button_widget._onGroupButtonClicked()
+			self.refresh()
 		self._saveConfig()
