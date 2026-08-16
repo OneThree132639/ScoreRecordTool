@@ -31,9 +31,9 @@ if __package__ is None or __package__ == "":
 	from GUI.DifficultyButton import DifficultyButtonSet
 	from GUI.FilterDialog import FilterButton
 	from GUI.GroupButton import GroupButtonSet, GroupButtonWidget
+	from GUI.LineEditor import CustomListTitleBox, SearchBox
 	from GUI.MusicList import DisplayCard, MusicListWidget
 	from GUI.RandomDialog import RandomWidget
-	from GUI.SearchBox import SearchBox
 	from GUI.SortTypeBox import SortTypeBox
 else: 
 	from .DataManager.DataManager import DataManager
@@ -47,9 +47,9 @@ else:
 	from .GUI.DifficultyButton import DifficultyButtonSet
 	from .GUI.FilterDialog import FilterButton
 	from .GUI.GroupButton import GroupButtonSet, GroupButtonWidget
+	from .GUI.LineEditor import CustomListTitleBox, SearchBox
 	from .GUI.MusicList import DisplayCard, MusicListWidget
 	from .GUI.RandomDialog import RandomWidget
-	from .GUI.SearchBox import SearchBox
 	from .GUI.SortTypeBox import SortTypeBox
 
 class CustomListDialog(QDialog): 
@@ -63,7 +63,8 @@ class CustomListDialog(QDialog):
 	filter_size_percentage = 0.05
 	sort_type_box_height_percentage = 0.025
 	diff_button_size_percentage = 0.07
-	all_diff_height_percentage = 0.07
+	all_diff_height_percentage = 0.05
+	list_title_height_percentage = 0.025
 
 	up_percentage = 0.93
 	down_percentage = 0.05
@@ -99,7 +100,7 @@ class CustomListDialog(QDialog):
 		self.right_layout = QVBoxLayout()
 		self.rightup_layout = QHBoxLayout()
 		self.rightmiddle_layout = QVBoxLayout()
-		self.rightdown_layout = QHBoxLayout()
+		self.rightdown_layout = QVBoxLayout()
 		self.my_layout = QVBoxLayout(self)
 		self.setLayout(self.my_layout)
 
@@ -121,7 +122,10 @@ class CustomListDialog(QDialog):
 			int(self.search_box_height_percentage * up_height), 
 			search_init, self
 		)
-		self.music_list_widget = MusicListWidget(int(up_height * self.music_list_widget_height_percentage), True, self)
+		self.music_list_widget = MusicListWidget(
+			int(up_height * self.music_list_widget_height_percentage), True, 
+			get_all_diff_func=self.getAllDifficulties, parent=self
+		)
 
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
@@ -145,7 +149,9 @@ class CustomListDialog(QDialog):
 		self.rightmiddle_layout.addWidget(self.diff_button_set)
 
 		self.all_diff = OptionCheckBox(int(up_height * self.all_diff_height_percentage), "全難易度選択", self)
+		self.list_title = CustomListTitleBox(int(up_height * self.list_title_height_percentage), "", self)
 		self.rightdown_layout.addWidget(self.all_diff)
+		self.rightdown_layout.addWidget(self.list_title)
 
 		self.right_layout.addLayout(self.rightup_layout)
 		self.right_layout.addLayout(self.rightmiddle_layout)
@@ -167,6 +173,8 @@ class CustomListDialog(QDialog):
 		self.diff_button_set.button_group.buttonClicked.connect(self.refresh)
 
 		self.all_diff.checkbox_indicator.toggled.connect(lambda: self.music_list_widget.setAllDiff(self.all_diff.isChecked()))
+
+		self.installEventFilter(self)
 
 	def initRefresh(self, 
 			music_table: pd.DataFrame, vocal_table: pd.DataFrame, 
@@ -293,6 +301,34 @@ class CustomListDialog(QDialog):
 		self.display_card.pause()
 		self.display_card.resume()
 
+	def getAllDifficulties(self, music_id: int) -> List[Difficulty]: 
+		music_table: pd.DataFrame = self.music_table.copy()
+		diff_list: pd.DataFrame = music_table[music_table["id_musics"] == music_id]
+		difficulties = [Difficulty.fromStr(diff) for diff in diff_list["musicDifficulty"].values]
+		return difficulties
+
+	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.MouseButtonPress: 
+			assert isinstance(event, QMouseEvent)
+			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
+				self.search_box.clearFocus()
+			if not self.list_title.geometry().contains(self.mapFromGlobal(event.globalPos())): 
+				self.list_title.clearFocus()
+		return super().eventFilter(watched, event)
+
+	def getCurrentCheckedIdDiffList(self) -> List[Tuple[int, str]]: 
+		id_diff_list = self.music_list_widget.checked_list.copy()
+		return [(music_id, difficulty.value.lower()) for music_id, difficulty in id_diff_list]
+
+	def setCurrentCheckedIdDiffList(self, id_diff_list: List[Tuple[int, str]]) -> None: 
+		self.music_list_widget.checked_list = [(music_id, Difficulty.fromStr(difficulty)) for music_id, difficulty in id_diff_list]
+		self.music_list_widget.updateCheckbox()
+
+	def getCurrentTitle(self) -> str: 
+		return self.list_title.text()
+
+	def setCurrentTitle(self, title: str) -> None: 
+		self.list_title.setText(title)
 
 class MainWindow(QMainWindow): 
 
@@ -749,7 +785,33 @@ class MainWindow(QMainWindow):
 			self.sort_type_box.getCurrentSortType(), self.diff_button_set.getDifficulty(), 
 			self.music_list_widget.getCurrentMusicId()
 		)
-		if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
-			logging.debug("Custom list dialog accepted. ")
-		else: 
-			logging.debug("Custom list dialog rejected. ")
+		while True: 
+			if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
+				logging.debug("Custom list dialog accepted. ")
+				if "custom-groups" not in self.config: 
+					self.config["custom-groups"] = {}
+				title = self.custom_list_dialog.getCurrentTitle()
+				if not title: 
+					msg = QMessageBox(self)
+					msg.setIcon(QMessageBox.Icon.Warning)
+					msg.setWindowTitle("Invalid Title")
+					msg.setText("The title for the custom group cannot be empty. Please enter a valid title.")
+					msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+					centerDialog(msg, self)
+					msg.exec_()
+					continue
+				elif title in self.config["custom-groups"]: 
+					msg = QMessageBox(self)
+					msg.setIcon(QMessageBox.Icon.Warning)
+					msg.setWindowTitle("Duplicate Title")
+					msg.setText(f"The title '{title}' already exists. Please enter a different title.")
+					msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+					centerDialog(msg, self)
+					msg.exec_()
+					continue
+				self.config["custom-groups"][title] = self.custom_list_dialog.getCurrentCheckedIdDiffList()
+			else: 
+				logging.debug("Custom list dialog rejected. ")
+			break
+
+		self._saveConfig()

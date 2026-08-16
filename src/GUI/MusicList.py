@@ -760,6 +760,24 @@ class MusicList(QListWidget):
 			assert music_card is not None
 			basic_card.programSetCheckBox(checked)
 			music_card.programSetCheckBox(checked)
+
+	def updateCheckboxByList(self, checked_list: List[Tuple[int, Difficulty]]) -> None: 
+		if not self.has_check_box: 
+			return
+		for music_id, diff_dict in self.iddiff_to_index_map.items(): 
+			for difficulty, indices in diff_dict.items(): 
+				checked = (music_id, difficulty) in checked_list
+				for index in indices: 
+					item = self.item(index)
+					assert item is not None
+					container: QStackedWidget = self.itemWidget(item)
+					assert container is not None
+					basic_card: BasicCard = container.widget(0)
+					music_card: MusicCard = container.widget(1)
+					assert basic_card is not None
+					assert music_card is not None
+					basic_card.programSetCheckBox(checked)
+					music_card.programSetCheckBox(checked)
 		
 
 class MusicListWidget(QStackedWidget): 
@@ -770,7 +788,25 @@ class MusicListWidget(QStackedWidget):
 	icon_percentage = 0.10
 	label_percentage = 0.10
 
-	def __init__(self, init_height: int, has_check_box: bool=False, all_diff: bool=False, parent: Optional[QWidget]=None) -> None: 
+	@overload
+	def __init__(self, 
+			init_height: int, has_check_box: Literal[False]=False, 
+			get_all_diff_func: Literal[None]=None, all_diff: Literal[False]=False, 
+			parent: Optional[QWidget]=None
+		) -> None: ... 
+
+	@overload
+	def __init__(self, 
+			init_height: int, has_check_box: Literal[True], 
+			get_all_diff_func: Callable[[int], List[Difficulty]], all_diff: bool=False, 
+			parent: Optional[QWidget]=None
+		) -> None: ...
+
+	def __init__(self, 
+			init_height: int, has_check_box: bool=False, 
+			get_all_diff_func: Optional[Callable[[int], List[Difficulty]]]=None, all_diff: bool=False, 
+			parent: Optional[QWidget]=None
+		) -> None: 
 		super().__init__(parent)
 		self.small_height = int(init_height * self.small_percentage)
 		self.large_height = int(init_height * self.large_percentage)
@@ -782,6 +818,7 @@ class MusicListWidget(QStackedWidget):
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 		self.checked_list: List[Tuple[int, Difficulty]] = []
 		self.all_diff = all_diff
+		self.get_all_diff_func = get_all_diff_func
 
 		self.normal_cache: Dict[Difficulty, 
 			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
@@ -1004,7 +1041,6 @@ class MusicListWidget(QStackedWidget):
 			current_list._onScrollStop()
 
 	def setAllDiff(self, all_diff: bool) -> None: 
-		logging.debug("Setting all_diff to %s", all_diff)
 		self.all_diff = all_diff
 
 	def setCheckBox(self, music_id: int, difficulty: Difficulty, checked: bool) -> None: 
@@ -1013,7 +1049,8 @@ class MusicListWidget(QStackedWidget):
 			music_list_widget: MusicList = self.widget(index)
 			if music_list_widget is not None: 
 				if self.all_diff: 
-					for diff in Difficulty: 
+					assert self.get_all_diff_func is not None
+					for diff in self.get_all_diff_func(music_id): 
 						music_list_widget.setCheckBox(music_id, diff, checked)
 						if checked: 
 							checked_set.add((music_id, diff))
@@ -1026,3 +1063,10 @@ class MusicListWidget(QStackedWidget):
 					else: 
 						checked_set.discard((music_id, difficulty))
 		self.checked_list = list(checked_set)
+
+	def updateCheckbox(self) -> None: 
+		checked_set = set(self.checked_list)
+		for index in range(self.count()): 
+			music_list_widget: MusicList = self.widget(index)
+			if music_list_widget is not None: 
+					music_list_widget.updateCheckboxByList(list(checked_set))
