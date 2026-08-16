@@ -9,10 +9,10 @@ import zipfile
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from PyQt5.QtCore import (
-	pyqtSignal, QDir, QEvent, QObject, QRect, QTimer
+	pyqtSignal, QDir, QEvent, QObject, QRect, Qt, QTimer
 )
 from PyQt5.QtGui import (
-	QColor, QMouseEvent
+	QColor, QKeyEvent, QMouseEvent
 )
 from PyQt5.QtWidgets import (
 	QDialog, QFileDialog, QHBoxLayout, QMainWindow, 
@@ -295,7 +295,8 @@ class CustomListDialog(QDialog):
 
 		self.filter_button.setNormalState(search_content, filter_options)
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
-		self.diff_button_set.setLevels(difficulties, difficulty)
+		if len(music_list) != 0:
+			self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.switchList(
 			sort_type, group, difficulty, search_content, filter_options, 
 			music_list, vocal_list, self.diff_btn_config[difficulty.value.lower()]["pressed"], 
@@ -318,6 +319,30 @@ class CustomListDialog(QDialog):
 				self.search_box.clearFocus()
 			if not self.list_title.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.list_title.clearFocus()
+		if event.type() == QEvent.Type.KeyPress: 
+			assert isinstance(event, QKeyEvent)
+			if event.key() == Qt.Key.Key_Up: 
+				self.music_list_widget.moveIndex(-1)
+			elif event.key() == Qt.Key.Key_Down: 
+				self.music_list_widget.moveIndex(1)
+			elif event.key() == Qt.Key.Key_Left: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
+				while True: 
+					current_diff_index = (current_diff_index - 1) % len(difficulties)
+					if difficulties[current_diff_index] is not None: 
+						break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+			elif event.key() == Qt.Key.Key_Right: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
+				while True: 
+					current_diff_index = (current_diff_index + 1) % len(difficulties)
+					if difficulties[current_diff_index] is not None: 
+						break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
 		return super().eventFilter(watched, event)
 
 	def getCurrentCheckedIdDiffList(self) -> List[Tuple[int, str]]: 
@@ -693,7 +718,8 @@ class MainWindow(QMainWindow):
 
 		self.filter_button.setNormalState(search_content, filter_options)
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
-		self.diff_button_set.setLevels(difficulties, difficulty)
+		if len(music_list) != 0: 
+			self.diff_button_set.setLevels(difficulties, difficulty)
 		self.music_list_widget.switchList(
 			sort_type, group, difficulty, search_content, filter_options, 
 			music_list, vocal_list, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
@@ -784,6 +810,31 @@ class MainWindow(QMainWindow):
 			assert isinstance(event, QMouseEvent)
 			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.search_box.clearFocus()
+		if event.type() == QEvent.Type.KeyPress: 
+			assert isinstance(event, QKeyEvent)
+			if event.key() == Qt.Key.Key_Up: 
+				self.music_list_widget.moveIndex(-1)
+			elif event.key() == Qt.Key.Key_Down: 
+				self.music_list_widget.moveIndex(1)
+			elif event.key() == Qt.Key.Key_Left: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
+				while True: 
+					current_diff_index = (current_diff_index - 1) % len(difficulties)
+					if difficulties[current_diff_index] is not None: 
+						break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+			elif event.key() == Qt.Key.Key_Right: 
+				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+				difficulties = self._getMusicLevels(self.music_list_widget.getCurrentMusicId())
+				while True: 
+					current_diff_index = (current_diff_index + 1) % len(difficulties)
+					if difficulties[current_diff_index] is not None: 
+						break
+				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+				self.refresh()
+			
 		return super().eventFilter(watched, event)
 
 	def _onAddGroupButtonClicked(self) -> None: 

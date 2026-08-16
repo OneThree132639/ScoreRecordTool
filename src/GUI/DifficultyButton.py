@@ -320,6 +320,10 @@ class DifficultyButtonSet(QWidget):
 		elif difficulty == Difficulty.APPEND and self.append_button.isEnabled(): 
 			self.append_button.setChecked(True)
 
+	def setForcedDifficulty(self, difficulty: Difficulty) -> None: 
+		self.setLevels((None, None, None, None, None, None), difficulty)
+		self.setCheckedDifficulty(difficulty)
+
 	def getDifficulty(self) -> Difficulty:
 		checked_button: Optional[DifficultyButton] = self.button_group.checkedButton()
 		assert checked_button is not None

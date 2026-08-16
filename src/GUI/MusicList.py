@@ -784,6 +784,13 @@ class MusicList(QListWidget):
 					assert music_card is not None
 					basic_card.programSetCheckBox(checked)
 					music_card.programSetCheckBox(checked)
+
+	def moveIndex(self, movement: int) -> None: 
+		if len(self.music_list) == 0: 
+			return 
+		self._current_index += movement
+		self._current_index %= self._num_line
+		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index), False)
 		
 
 class MusicListWidget(QStackedWidget): 
@@ -1123,3 +1130,8 @@ class MusicListWidget(QStackedWidget):
 			music_list_widget: MusicList = self.widget(index)
 			if music_list_widget is not None: 
 				music_list_widget.updateCheckboxByList(list(checked_set))
+
+	def moveIndex(self, movement: int) -> None: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is not None: 
+			current_list.moveIndex(movement)
