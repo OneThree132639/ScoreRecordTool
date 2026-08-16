@@ -140,7 +140,7 @@ class TextButton(GroupButton):
 	checked_color = "#A1F4EB"
 	padding_percentage = 0.03
 	short_percentage = 0.20
-	long_percentage = 0.10
+	long_percentage = 0.15
 	min_height_percentage = 0.4
 	padding_percentage = 0.03
 
@@ -215,7 +215,10 @@ class TextButton(GroupButton):
 			target_rect = QRectF(x, y, line_width, height)
 			painter.drawText(target_rect, Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter, line)
 
-
+	def rename(self, new_text: str) -> None: 
+		self.my_text = new_text
+		self.my_group = new_text
+		self.update()
 
 
 class GroupButtonSet(QListWidget): 
@@ -229,6 +232,7 @@ class GroupButtonSet(QListWidget):
 			btn_size: int, group_masks: np.ndarray, 
 			btn_config: Dict[str, Dict[str, str]], 
 			checked_group: Union[int, str]=0, 
+			custom_list: List[str]=[], 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -263,6 +267,10 @@ class GroupButtonSet(QListWidget):
 			self.vbs_button, self.ws_button, self.ng_button,
 			self.other_button
 		]
+
+		for btn_name in custom_list: 
+			btn = TextButton(btn_name, btn_size, btn_name, self)
+			self.button_list.append(btn)
 
 		for btn in self.button_list:
 			btn.setCheckable(True)
@@ -303,15 +311,31 @@ class GroupButtonSet(QListWidget):
 		item.setSizeHint(size_hint)
 		return item, container
 
-	def addButton(self, button: BasicButton) -> None: 
-		button.setCheckable(True)
-		button.setEnabled(True)
-		self.button_list.append(button)
-		self.button_group.addButton(button)
+	def addButton(self, name: str) -> None: 
+		btn = TextButton(name, self.btn_size, name, self)
+		btn.setCheckable(True)
+		btn.setEnabled(True)
+		self.button_list.append(btn)
+		self.button_group.addButton(btn)
 
-		item, container = self._createCenteredItem(button)
+		item, container = self._createCenteredItem(btn)
 		self.addItem(item)
 		self.setItemWidget(item, container)
+
+	def removeButton(self, name: str) -> None: 
+		for i, btn in enumerate(self.button_list): 
+			if isinstance(btn.my_group, str) and btn.my_group == name: 
+				self.takeItem(i)
+				self.button_group.removeButton(btn)
+				self.button_list.pop(i)
+				return
+
+	def renameButton(self, old_name: str, new_name: str) -> None: 
+		for btn in self.button_list: 
+			if isinstance(btn.my_group, str) and btn.my_group == old_name: 
+				btn: TextButton
+				btn.rename(new_name)
+				return
 
 	def getCurrentGroup(self) -> Union[Group, str]: 
 		for btn in self.button_list: 
@@ -501,10 +525,15 @@ class GroupButtonWidget(QWidget):
 	def __init__(self, 
 			btn_size: int, group_masks: np.ndarray, setting_mask: np.ndarray, 
 			btn_config: Dict[str, Dict[str, str]], checked_group: Union[int, str]=0, 
+			custom_list: List[str]=[], 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
-		self.group_button_set = GroupButtonSet(btn_size, group_masks, btn_config, checked_group, self)
+		self.group_button_set = GroupButtonSet(
+			btn_size, group_masks, btn_config, checked_group, 
+			custom_list=custom_list, 
+			parent=self
+		)
 
 		self.manage_widget = QWidget(self) 
 		self.manage_layout = QHBoxLayout(self.manage_widget)
@@ -533,11 +562,24 @@ class GroupButtonWidget(QWidget):
 		padding = int(btn_size * self.padding_percentage)
 		self.setFixedWidth(btn_size + 2 * padding)
 
+		self.group_button_set.button_group.buttonClicked.connect(self._onGroupButtonClicked)
 		self.sub_button.clicked.connect(lambda: logging.debug("sub button clicked. "))
 		self.setting_button.clicked.connect(lambda: logging.debug("setting button clicked. "))
+
+	def _onGroupButtonClicked(self) -> None: 
+		current_group = self.group_button_set.getCurrentGroup()
+		if isinstance(current_group, Group): 
+			self.sub_button.setEnabled(False)
+			self.setting_button.setEnabled(False)
+		elif isinstance(current_group, str): 
+			self.sub_button.setEnabled(True)
+			self.setting_button.setEnabled(True)
 
 	def getCurrentGroup(self) -> Union[Group, str]: 
 		return self.group_button_set.getCurrentGroup()
 
 	def getCurrentGroupConfig(self) -> Union[int, str]: 
 		return self.group_button_set.getCurrentGroupConfig()
+
+	def addButton(self, group_name: str) -> None: 
+		self.group_button_set.addButton(group_name)

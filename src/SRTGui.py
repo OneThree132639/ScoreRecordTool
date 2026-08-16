@@ -379,11 +379,14 @@ class MainWindow(QMainWindow):
 		self.my_layout = QHBoxLayout(self.main_widget)
 		self.setCentralWidget(self.main_widget)
 
+		custom_list = [elem["title"] for elem in self._init_config.get("custom-groups", [])]
 		self.group_button_widget = GroupButtonWidget(
 			int(self.group_percentage * self.width()), 
 			self.data_manager.logo_array, self.data_manager.loadBinaryArray("random-setting-array"), 
 			self.data_manager.config["group"], 
-			checked_group=self._init_config.get("group", 0), parent=self
+			checked_group=self._init_config.get("group", 0), 
+			custom_list=custom_list, 
+			parent=self
 		)
 		self.left_layout.addWidget(self.group_button_widget)
 
@@ -581,11 +584,13 @@ class MainWindow(QMainWindow):
 		return music_list[music_list["id_musics"].isin(music_ids)]
 
 	def _filterByCustomGroup(self, music_list: pd.DataFrame, group: str) -> pd.DataFrame: 
-		if group not in self.data_manager.custom_list: 
-			logging.error("Custom group '%s' not found in custom_list.", group)
-			raise ValueError(f"Custom group '{group}' not found in custom_list.")
-		music_ids = self.data_manager.custom_list[group]
-		return music_list[music_list["id_musics"].isin(music_ids)]
+		result = next((item for item in self.config["custom-groups"] if item["title"] == group), None)
+		if result is None:
+			logging.error("Custom group '%s' not found in custom-groups.", group)
+			raise ValueError(f"Custom group '{group}' not found in custom-groups.")
+		filter_df = pd.DataFrame(result["id-diff-list"], columns=["id_musics", "musicDifficulty"])
+		merge_result = pd.merge(music_list, filter_df, on=["id_musics", "musicDifficulty"], how="inner")
+		return merge_result
 
 	def _filterByFilterOptions(self, music_list: pd.DataFrame, filter_option: SongType) -> pd.DataFrame: 
 		match filter_option: 
@@ -789,7 +794,7 @@ class MainWindow(QMainWindow):
 			if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
 				logging.debug("Custom list dialog accepted. ")
 				if "custom-groups" not in self.config: 
-					self.config["custom-groups"] = {}
+					self.config["custom-groups"] = []
 				title = self.custom_list_dialog.getCurrentTitle()
 				if not title: 
 					msg = QMessageBox(self)
@@ -809,7 +814,11 @@ class MainWindow(QMainWindow):
 					centerDialog(msg, self)
 					msg.exec_()
 					continue
-				self.config["custom-groups"][title] = self.custom_list_dialog.getCurrentCheckedIdDiffList()
+				self.config["custom-groups"].append({
+					"title": title, 
+					"id-diff-list": self.custom_list_dialog.getCurrentCheckedIdDiffList()
+				}) 
+				self.group_button_widget.addButton(title)
 			else: 
 				logging.debug("Custom list dialog rejected. ")
 			break
