@@ -624,7 +624,6 @@ class GroupButtonWidget(QWidget):
 		self.setFixedWidth(btn_size + 2 * padding)
 
 		self.group_button_set.button_group.buttonClicked.connect(self._onGroupButtonClicked) 
-		self.setting_button.clicked.connect(lambda: logging.debug("setting button clicked. "))
 
 		self._onGroupButtonClicked()
 
@@ -648,3 +647,6 @@ class GroupButtonWidget(QWidget):
 
 	def removeButton(self, group_name: str) -> None: 
 		self.group_button_set.removeButton(group_name)
+
+	def renameButton(self, old_name: str, new_name: str) -> None: 
+		self.group_button_set.renameButton(old_name, new_name)

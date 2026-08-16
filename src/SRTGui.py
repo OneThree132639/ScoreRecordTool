@@ -187,7 +187,7 @@ class CustomListDialog(QDialog):
 	def initLoad(self, 
 			group: Group, search_content: str, filter_option: SongType, 
 			sort_type: SortType, difficulty: Difficulty, music_id: int, 
-			title: str=""
+			title: str="", checked_list: List[Tuple[int, str]]=[]
 		) -> None: 
 		self.list_title.setText(title)
 		self.group_button_set.setCurrentGroup(group)
@@ -197,6 +197,8 @@ class CustomListDialog(QDialog):
 
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.refresh()
+		self.music_list_widget.checked_list = [(music_id, Difficulty.fromStr(difficulty)) for music_id, difficulty in checked_list]
+		self.music_list_widget.updateCheckbox()
 		QTimer.singleShot(0, lambda: self.music_list_widget.setCurrentMusicId(music_id))
 
 
@@ -453,6 +455,7 @@ class MainWindow(QMainWindow):
 
 		self.group_button_widget.add_button.clicked.connect(self._onAddGroupButtonClicked)
 		self.group_button_widget.sub_button.clicked.connect(self._onSubGroupButtonClicked)
+		self.group_button_widget.setting_button.clicked.connect(self._onSettingGroupButtonClicked)
 
 		self.installEventFilter(self)
 
@@ -795,7 +798,6 @@ class MainWindow(QMainWindow):
 		)
 		while True: 
 			if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
-				logging.debug("Custom list dialog accepted. ")
 				if "custom-groups" not in self.config: 
 					self.config["custom-groups"] = []
 				title = self.custom_list_dialog.getCurrentTitle()
@@ -821,9 +823,7 @@ class MainWindow(QMainWindow):
 					"title": title, 
 					"id-diff-list": self.custom_list_dialog.getCurrentCheckedIdDiffList()
 				}) 
-				self.group_button_widget.addButton(title)
-			else: 
-				logging.debug("Custom list dialog rejected. ")
+				self.group_button_widget.addButton(title) 
 			break
 
 		self._saveConfig()
@@ -843,4 +843,57 @@ class MainWindow(QMainWindow):
 			self.group_button_widget.group_button_set.setCurrentGroup(Group.ALL)
 			self.group_button_widget._onGroupButtonClicked()
 			self.refresh()
+			self.music_list_widget.removeListByGroup(group)
+		self._saveConfig()
+
+	def _onSettingGroupButtonClicked(self) -> None: 
+		group = self.group_button_widget.getCurrentGroup()
+		assert isinstance(group, str)
+		index, group_dict = next(
+			((idx, item) for idx, item in enumerate(self.config["custom-groups"]) 
+			if item["title"] == group), (None, None)
+		)
+		assert group_dict is not None
+		origin_title = group_dict["title"]
+		self.custom_list_dialog.initLoad(
+			Group.ALL, 
+			self.search_box.text(), self.filter_button.getCurrentFilterOptions(), 
+			self.sort_type_box.getCurrentSortType(), self.diff_button_set.getDifficulty(), 
+			self.music_list_widget.getCurrentMusicId(), title=group, 
+			checked_list=group_dict["id-diff-list"]
+		)
+		while True: 
+			if self.custom_list_dialog.exec() == QDialog.DialogCode.Accepted: 
+				if "custom-groups" not in self.config: 
+					self.config["custom-groups"] = []
+				title = self.custom_list_dialog.getCurrentTitle()
+				if not title: 
+					msg = QMessageBox(self)
+					msg.setIcon(QMessageBox.Icon.Warning)
+					msg.setWindowTitle("Invalid Title")
+					msg.setText("The title for the custom group cannot be empty. Please enter a valid title.")
+					msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+					centerDialog(msg, self)
+					msg.exec_()
+					continue
+				elif title in self.config["custom-groups"]: 
+					msg = QMessageBox(self)
+					msg.setIcon(QMessageBox.Icon.Warning)
+					msg.setWindowTitle("Duplicate Title")
+					msg.setText(f"The title '{title}' already exists. Please enter a different title.")
+					msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+					centerDialog(msg, self)
+					msg.exec_()
+					continue
+				self.music_list_widget.removeListByGroup(group)
+				self.config["custom-groups"][index] = {
+					"title": title, 
+					"id-diff-list": self.custom_list_dialog.getCurrentCheckedIdDiffList()
+				} 
+				self.group_button_widget.renameButton(origin_title, title)
+				self.group_button_widget.group_button_set.setCurrentGroup(title)
+				self.group_button_widget._onGroupButtonClicked()
+				self.refresh()
+			break
+
 		self._saveConfig()

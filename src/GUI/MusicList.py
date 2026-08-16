@@ -401,8 +401,12 @@ class MusicList(QListWidget):
 	music_selected = pyqtSignal(int)
 	checkbox_toggled = pyqtSignal(int, Difficulty, bool)
 
-	def __init__(self, pixel_size: int, has_check_box: bool=False, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, pixel_size: int, 
+			identifier: Optional[Tuple[SongType, SortType, Union[Group, str], Difficulty, str]]=None, 
+			has_check_box: bool=False, parent: Optional[QWidget]=None
+		) -> None: 
 		super().__init__(parent)
+		self.identifier = identifier
 
 		self.setFlow(QListWidget.Flow.TopToBottom)
 		self.setSelectionMode(QListWidget.SelectionMode.NoSelection)
@@ -815,7 +819,7 @@ class MusicListWidget(QStackedWidget):
 		self.icon_size = int(init_height * self.icon_percentage)
 		self.label_size = int(init_height * self.label_percentage)
 		self.has_check_box = has_check_box
-		self.empty_music_list = MusicList(self.large_height, self)
+		self.empty_music_list = MusicList(self.large_height, has_check_box=has_check_box, parent=self)
 		self.addWidget(self.empty_music_list)
 		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 		self.checked_list: List[Tuple[int, Difficulty]] = []
@@ -855,7 +859,11 @@ class MusicListWidget(QStackedWidget):
 			self.map_dict[filter_options][sort_type][group] = {}
 		if difficulty not in self.map_dict[filter_options][sort_type][group]: 
 			self.map_dict[filter_options][sort_type][group][difficulty] = {}
-		self.map_dict[filter_options][sort_type][group][difficulty][search_content] = index
+		if index == -1: 
+			if search_content in self.map_dict[filter_options][sort_type][group][difficulty]: 
+				del self.map_dict[filter_options][sort_type][group][difficulty][search_content]
+		else:
+			self.map_dict[filter_options][sort_type][group][difficulty][search_content] = index
 
 	def getCurrentMusicId(self) -> int: 
 		current_list: MusicList = self.currentWidget()
@@ -973,7 +981,11 @@ class MusicListWidget(QStackedWidget):
 		if len(music_list) == 0: 
 			return 0
 		
-		new_music_list = MusicList(self.large_height, self)
+		new_music_list = MusicList(
+			self.large_height, has_check_box=self.has_check_box, 
+			identifier=(filter_options, sort_type, group, difficulty, search_content), 
+			parent=self
+		)
 		new_music_list.refreshData(
 			music_list, vocal_list, difficulty, config,
 			get_cover_func=get_cover_func, 
@@ -1002,6 +1014,45 @@ class MusicListWidget(QStackedWidget):
 		self.setCurrentIndex(index)
 		if index > 0: 
 			self.setCurrentMusicId(music_id)
+
+	def removeList(self, 
+			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
+			filter_options: SongType
+		) -> None: 
+		index = self._getMusicListIndex(
+			filter_options, sort_type, group, difficulty, search_content
+		)
+		if index == -1: 
+			return
+		target_widget: MusicList = self.widget(index)
+		if target_widget is not None:
+			self.removeWidget(target_widget)
+			target_widget.deleteLater()
+		self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, -1)
+		self.updateMapDict()
+
+	def removeListByGroup(self, group: str) -> None: 
+		for filter_options in list(self.map_dict.keys()): 
+			for sort_type in list(self.map_dict[filter_options].keys()): 
+				if group in self.map_dict[filter_options][sort_type]: 
+					for difficulty in list(self.map_dict[filter_options][sort_type][group].keys()): 
+						for search_content in list(self.map_dict[filter_options][sort_type][group][difficulty].keys()): 
+							index = self.map_dict[filter_options][sort_type][group][difficulty][search_content]
+							target_widget: MusicList = self.widget(index)
+							if target_widget is not None:
+								self.removeWidget(target_widget)
+								target_widget.deleteLater()
+					del self.map_dict[filter_options][sort_type][group]
+		self.updateMapDict()
+
+	def updateMapDict(self) -> None: 
+		self.map_dict.clear()
+		for idx in range(self.count()): 
+			music_list: MusicList = self.widget(idx)
+			if music_list is not None and music_list.identifier is not None: 
+				filter_options, sort_type, group, difficulty, search_content = music_list.identifier
+				self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, idx)
+
 
 	def updateDisplayCard(self, difficulty: Difficulty, card: DisplayCard) -> None: 
 		music_id = self.getCurrentMusicId()
@@ -1071,4 +1122,4 @@ class MusicListWidget(QStackedWidget):
 		for index in range(self.count()): 
 			music_list_widget: MusicList = self.widget(index)
 			if music_list_widget is not None: 
-					music_list_widget.updateCheckboxByList(list(checked_set))
+				music_list_widget.updateCheckboxByList(list(checked_set))
