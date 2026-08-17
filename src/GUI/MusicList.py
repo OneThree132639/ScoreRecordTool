@@ -14,7 +14,7 @@ from PyQt5.QtGui import (
 	QFont, QImage, QPixmap, QResizeEvent
 )
 from PyQt5.QtWidgets import (
-	QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QScrollBar, 
+	QApplication, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QScrollBar, 
 	QSizePolicy, QStackedWidget, QVBoxLayout, QWidget
 )
 
@@ -519,6 +519,11 @@ class MusicList(QListWidget):
 			self.iddiff_to_index_map[music_id][difficulty] = []
 		self.iddiff_to_index_map[music_id][difficulty].append(index)
 
+	def getScreenHeight(self) -> int: 
+		screen = QApplication.primaryScreen()
+		assert screen is not None
+		return screen.geometry().height()
+
 	def refreshData(self, 
 			music_table: Optional[pd.DataFrame], 
 			vocal_table: Optional[pd.DataFrame], 
@@ -543,9 +548,8 @@ class MusicList(QListWidget):
 			vocal_table, difficulty, config, get_cover_func=get_cover_func, 
 			create_container=create_container
 		)
-		viewport_height = self._getViewportHeight()
 		assert self.normal_height is not None
-		self._num_pad = int(viewport_height / (2 * self.normal_height)) + 4
+		self._num_pad = int(self.getScreenHeight() / (2 * self.normal_height)) + 2
 		for i in range(self._num_pad - 1): 
 			self._insertContainer(
 				music_table.iloc[(self._num_line - 2 - i) % self._num_line], 
