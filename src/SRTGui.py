@@ -139,6 +139,7 @@ class ArrowKeyFilter(QObject):
 			diff_button_set: DifficultyButtonSet, 
 			music_table: Optional[pd.DataFrame], 
 			refresh_func: Callable[[], None], 
+			all_diff: Optional[OptionCheckBox], 
 			parent: QWidget
 		) -> None: 
 		super().__init__(parent)
@@ -147,6 +148,7 @@ class ArrowKeyFilter(QObject):
 		self.diff_button_set = diff_button_set
 		self.refresh_func = refresh_func
 		self.music_table = music_table
+		self.all_diff = all_diff
 
 		parent.installEventFilter(self)
 		self.recursivelyInstallEventFilter(self.music_list_widget)
@@ -193,6 +195,15 @@ class ArrowKeyFilter(QObject):
 					self.group_buttons.moveGroup(movement)
 					self.refresh_func()
 					return True
+				case Qt.Key.Key_S | Qt.Key.Key_R: 
+					checked = event.key() == Qt.Key.Key_S
+					self.music_list_widget.currentCheckboxCheckedSignalEmission(checked)
+					return True
+				case Qt.Key.Key_A: 
+					if self.all_diff is not None: 
+						checked = not self.all_diff.isChecked()
+						self.all_diff.setChecked(checked)
+						return True
 				case _: 
 					return False
 		return False
@@ -328,9 +339,10 @@ class CustomListDialog(QDialog):
 
 		self.arrow_filter = ArrowKeyFilter(
 			self.music_list_widget, self.group_button_set, self.diff_button_set, 
-			self.music_table, self.refresh, self
+			self.music_table, self.refresh, self.all_diff, parent=self
 		)
 		self.click_filter = ClickFilter([self.search_box, self.list_title], self)
+		self.installEventFilter(self)
 
 	def initRefresh(self, 
 			music_table: pd.DataFrame, vocal_table: pd.DataFrame, 
@@ -339,6 +351,7 @@ class CustomListDialog(QDialog):
 		self.music_table = music_table
 		self.vocal_table = vocal_table
 		self.music_tags = music_tags
+		self.arrow_filter.music_table = music_table
 
 	def initLoad(self, 
 			group: Group, search_content: str, filter_option: SongType, 
@@ -566,7 +579,7 @@ class MainWindow(QMainWindow):
 
 		self.arrow_filter = ArrowKeyFilter(
 			self.music_list_widget, self.group_button_widget, self.diff_button_set, 
-			self.data_manager.music_table, self.refresh, self
+			self.data_manager.music_table, self.refresh, None, self
 		)
 		self.click_filter = ClickFilter([self.search_box], self)
 

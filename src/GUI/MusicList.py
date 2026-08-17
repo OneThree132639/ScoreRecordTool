@@ -795,6 +795,20 @@ class MusicList(QListWidget):
 		self._current_index += movement
 		self._current_index %= self._num_line
 		self._setVerticalScrollBarValue(self._getTargetScrollValue(self._current_index), False)
+
+	def currentCheckboxCheckedSignalEmission(self, checked: bool) -> None: 
+		if not self.has_check_box: 
+			return
+		item = self.item(self._current_index + self._num_pad)
+		assert item is not None
+		container: QStackedWidget = self.itemWidget(item)
+		assert container is not None
+		basic_card: BasicCard = container.widget(0)
+		music_card: MusicCard = container.widget(1)
+		assert basic_card is not None
+		assert music_card is not None
+		music_card.check_box.setChecked(checked)
+		music_card.checkbox_toggled.emit(music_card.music_id, music_card.difficulty, checked)
 		
 
 class MusicListWidget(QStackedWidget): 
@@ -1139,3 +1153,8 @@ class MusicListWidget(QStackedWidget):
 		current_list: MusicList = self.currentWidget()
 		if current_list is not None: 
 			current_list.moveIndex(movement)
+
+	def currentCheckboxCheckedSignalEmission(self, checked: bool) -> None: 
+		current_list: MusicList = self.currentWidget()
+		if current_list is not None: 
+			current_list.currentCheckboxCheckedSignalEmission(checked)
