@@ -24,7 +24,7 @@ if __package__ is None or __package__ == "":
 	from GUI.Basics.BasicClass import GeneralClickButton, OptionCheckBox
 	from GUI.Basics.Enums.Difficulty import Difficulty
 	from GUI.Basics.Enums.Group import Group
-	from GUI.Basics.Enums.FilterOptions import SongType
+	from GUI.Basics.Enums.FilterOptions import SongType, Timeline
 	from GUI.Basics.Enums.SortType import SortType
 	from GUI.Dialog import centerDialog
 	from GUI.Dialog import MessageObject, ProgressObject, UpdateController
@@ -40,7 +40,7 @@ else:
 	from .GUI.Basics.BasicClass import GeneralClickButton, OptionCheckBox
 	from .GUI.Basics.Enums.Difficulty import Difficulty
 	from .GUI.Basics.Enums.Group import Group
-	from .GUI.Basics.Enums.FilterOptions import SongType
+	from .GUI.Basics.Enums.FilterOptions import SongType, Timeline
 	from .GUI.Basics.Enums.SortType import SortType
 	from .GUI.Dialog import centerDialog
 	from .GUI.Dialog import MessageObject, ProgressObject, UpdateController
@@ -86,10 +86,11 @@ class PublicMembers:
 
 	@classmethod
 	def _filterByFilterOptions(cls, 
-			music_list: pd.DataFrame, music_table: Optional[pd.DataFrame], filter_option: SongType
+			music_list: pd.DataFrame, music_table: Optional[pd.DataFrame], 
+			filter_options: Tuple[SongType, Timeline]
 		) -> pd.DataFrame: 
 		assert music_table is not None
-		match filter_option: 
+		match filter_options[0]: 
 			case SongType.ALL: 
 				pass
 			case SongType.COMMISSIONED: 
@@ -97,7 +98,22 @@ class PublicMembers:
 			case SongType.HAS_APPEND: 
 				music_ids = music_table[music_table["musicDifficulty"] == "append"]["id_musics"].unique()
 				music_list = music_list[music_list["id_musics"].isin(music_ids)]
-		return music_list
+
+		result = pd.DataFrame()
+		if Timeline.SERVICE_END & filter_options[1]: 
+			result = pd.concat([result, music_list[music_list["isAvailableForMusicScoreMaker"] != 1]])
+		if Timeline.PLAYABLE & filter_options[1]: 
+			result = pd.concat([result, music_list[
+				(music_list["isAvailableForMusicScoreMaker"] == 1) & 
+				(pd.to_datetime(music_list["publishedAt"], unit="ms") <= pd.Timestamp.now())
+			]])
+		if Timeline.UNPUBLISHED & filter_options[1]: 
+			result = pd.concat([result, music_list[
+				(music_list["isAvailableForMusicScoreMaker"] == 1) & 
+				(pd.to_datetime(music_list["publishedAt"], unit="ms") > pd.Timestamp.now())
+			]])
+		
+		return result
 
 	@classmethod
 	def _filterBySearchContent(cls, music_list: pd.DataFrame, search_content: str) -> pd.DataFrame: 
@@ -237,7 +253,7 @@ class CustomListDialog(QDialog):
 			available_geometry: QRect, title: str, 
 			group_masks: np.ndarray, group_config: Dict[str, Dict[str, str]], 
 			checked_group: Union[int, str], search_init: str, 
-			filter_init: str, sort_type_init: str, diff_btn_config: Dict[str, Dict[str, Dict[str, Any]]], 
+			filter_init: Dict[str, Any], sort_type_init: str, diff_btn_config: Dict[str, Dict[str, Dict[str, Any]]], 
 			get_cover_func: Callable[[int], Optional[np.ndarray]], 
 			parent: Optional[QWidget]=None
 		) -> None: 
@@ -354,7 +370,7 @@ class CustomListDialog(QDialog):
 		self.arrow_filter.music_table = music_table
 
 	def initLoad(self, 
-			group: Group, search_content: str, filter_option: SongType, 
+			group: Group, search_content: str, filter_option: Tuple[SongType, Timeline], 
 			sort_type: SortType, difficulty: Difficulty, music_id: int, 
 			title: str="", checked_list: List[Tuple[int, str]]=[]
 		) -> None: 
@@ -371,7 +387,7 @@ class CustomListDialog(QDialog):
 		QTimer.singleShot(0, lambda: self.music_list_widget.setCurrentMusicId(music_id))
 
 	def _filtering(self, 
-			group: Group, difficulty: Difficulty, filter_option: SongType, 
+			group: Group, difficulty: Difficulty, filter_option: Tuple[SongType, Timeline], 
 			search_content: str, sort_type: SortType
 		) -> pd.DataFrame: 
 		music_table: pd.DataFrame = self.music_table.copy()
@@ -519,8 +535,12 @@ class MainWindow(QMainWindow):
 		self.middle_layout.addWidget(self.search_box)
 		self.middle_layout.addWidget(self.music_list_widget)
 
+		default_options = self.data_manager.config.get("filter", {})
+		if not isinstance(default_options, dict): 
+			logging.warning("Invalid or outdated filter configuration: %s", default_options)
+			default_options = {}
 		self.filter_button = FilterButton(
-			self._init_config.get("filter", {}), 
+			default_options, 
 			int(self.height() * PublicMembers.filter_size_percentage), parent=self
 		)
 		self.sort_type_box = SortTypeBox(
@@ -558,7 +578,7 @@ class MainWindow(QMainWindow):
 			available_geometry, title="Custom List", 
 			group_masks=self.data_manager.logo_array, group_config=self.data_manager.config["group"], 
 			checked_group=self._init_config.get("group", 0), search_init=self._init_config.get("search", ""), 
-			filter_init=self._init_config.get("filter", {}), sort_type_init=self._init_config.get("sort_type", ""), 
+			filter_init=default_options, sort_type_init=self._init_config.get("sort_type", ""), 
 			diff_btn_config=self.data_manager.config["button"], get_cover_func=self.data_manager.getCoverArray, 
 			parent=self
 		)
@@ -705,7 +725,7 @@ class MainWindow(QMainWindow):
 		self._initRefresh()
 
 	def _filtering(self, 
-			group: Union[Group, str], difficulty: Difficulty, filter_option: SongType, 
+			group: Union[Group, str], difficulty: Difficulty, filter_option: Tuple[SongType, Timeline], 
 			search_content: str, sort_type: SortType
 		) -> pd.DataFrame: 
 		music_table: Optional[pd.DataFrame] = self.data_manager.music_table
@@ -832,7 +852,7 @@ class MainWindow(QMainWindow):
 
 	def _saveConfig(self) -> None: 
 		self.config["difficulty"] = self.diff_button_set.getDifficulty().value
-		self.config["filter"] = self.filter_button.getCurrentFilterOptions().value
+		self.config["filter"] = self.filter_button.getCurrentFilterOptionsDict()
 		self.config["group"] = self.group_button_widget.getCurrentGroupConfig()
 		self.config["music_id"] = self.music_list_widget.getCurrentMusicId()
 		self.config["random"] = self.random_widget.setting_dialog.getCurrentOptionsConfig()

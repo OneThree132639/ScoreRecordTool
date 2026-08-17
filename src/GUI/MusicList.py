@@ -22,14 +22,14 @@ if __package__ is None or __package__ == "":
 	from Basics.BasicClass import OptionCheckBoxIndicator
 	from Basics.Enums.Difficulty import Difficulty
 	from Basics.Enums.Group import Group
-	from Basics.Enums.FilterOptions import SongType
+	from Basics.Enums.FilterOptions import SongType, Timeline
 	from Basics.Enums.SortType import SortType
 	from Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 else: 
 	from .Basics.BasicClass import OptionCheckBoxIndicator
 	from .Basics.Enums.Difficulty import Difficulty
 	from .Basics.Enums.Group import Group
-	from .Basics.Enums.FilterOptions import SongType
+	from .Basics.Enums.FilterOptions import SongType, Timeline
 	from .Basics.Enums.SortType import SortType
 	from .Basics.MusicInfo import MarqueeLabel, OrdinaryLabel, AppendLabel
 
@@ -402,7 +402,7 @@ class MusicList(QListWidget):
 	checkbox_toggled = pyqtSignal(int, Difficulty, bool)
 
 	def __init__(self, pixel_size: int, 
-			identifier: Optional[Tuple[SongType, SortType, Union[Group, str], Difficulty, str]]=None, 
+			identifier: Optional[Tuple[Tuple[SongType, Timeline], SortType, Union[Group, str], Difficulty, str]]=None, 
 			has_check_box: bool=False, parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -846,7 +846,7 @@ class MusicListWidget(QStackedWidget):
 		self.has_check_box = has_check_box
 		self.empty_music_list = MusicList(self.large_height, has_check_box=has_check_box, parent=self)
 		self.addWidget(self.empty_music_list)
-		self.map_dict: Dict[SongType, Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
+		self.map_dict: Dict[Tuple[SongType, Timeline], Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 		self.checked_list: List[Tuple[int, Difficulty]] = []
 		self.all_diff = all_diff
 		self.get_all_diff_func = get_all_diff_func
@@ -859,7 +859,7 @@ class MusicListWidget(QStackedWidget):
 		] = {}
 
 	def _getMusicListIndex(self, 
-			filter_options: SongType, sort_type: SortType, group: Union[Group, str], 
+			filter_options: Tuple[SongType, Timeline], sort_type: SortType, group: Union[Group, str], 
 			difficulty: Difficulty, search_content: str
 		) -> int: 
 		if filter_options not in self.map_dict: 
@@ -873,7 +873,7 @@ class MusicListWidget(QStackedWidget):
 		return self.map_dict[filter_options][sort_type][group][difficulty].get(search_content, -1)
 
 	def _setMusicListIndex(self, 
-			filter_options: SongType, sort_type: SortType, group: Union[Group, str], 
+			filter_options: Tuple[SongType, Timeline], sort_type: SortType, group: Union[Group, str], 
 			difficulty: Difficulty, search_content: str, index: int
 		) -> None: 
 		if filter_options not in self.map_dict: 
@@ -993,7 +993,7 @@ class MusicListWidget(QStackedWidget):
 
 	def appendList(self, 
 			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
-			filter_options: SongType, 
+			filter_options: Tuple[SongType, Timeline], 
 			music_list: pd.DataFrame, vocal_list: pd.DataFrame, config: Dict[str, Any], 
 			get_cover_func: Callable[[int], Optional[np.ndarray]]
 		) -> int: 
@@ -1026,7 +1026,7 @@ class MusicListWidget(QStackedWidget):
 
 	def switchList(self, 
 			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
-			filter_options: SongType, 
+			filter_options: Tuple[SongType, Timeline], 
 			music_list: pd.DataFrame, vocal_list: pd.DataFrame, config: Dict[str, Any], 
 			get_cover_func: Callable[[int], Optional[np.ndarray]], music_id: int = 0
 		) -> None: 
@@ -1042,7 +1042,7 @@ class MusicListWidget(QStackedWidget):
 
 	def removeList(self, 
 			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
-			filter_options: SongType
+			filter_options: Tuple[SongType, Timeline]
 		) -> None: 
 		index = self._getMusicListIndex(
 			filter_options, sort_type, group, difficulty, search_content
@@ -1101,7 +1101,7 @@ class MusicListWidget(QStackedWidget):
 
 	def getCachedMusicList(self, 
 			sort_type: SortType, group: Union[Group, str], difficulty: Difficulty, search_content: str, 
-			filter_options: SongType
+			filter_options: Tuple[SongType, Timeline]
 		) -> Optional[pd.DataFrame]: 
 		index = self._getMusicListIndex(
 			filter_options, sort_type, group, difficulty, search_content

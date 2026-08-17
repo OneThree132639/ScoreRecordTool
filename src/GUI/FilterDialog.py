@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Dict, Optional, Tuple
 
 from PyQt5.QtCore import (
 	pyqtSignal, Qt
@@ -12,11 +12,15 @@ from PyQt5.QtWidgets import (
 )
 
 if __package__ is None or __package__ == "": 
-	from Basics.Enums.FilterOptions import SongType
-	from Basics.BasicClass import GeneralClickButton, OptionButtonSetWidget
+	from Basics.Enums.FilterOptions import SongType, Timeline
+	from Basics.BasicClass import (
+		GeneralClickButton, OptionButtonSetWidget, OptionCheckBoxSetWidget
+	)
 else: 
-	from .Basics.Enums.FilterOptions import SongType
-	from .Basics.BasicClass import GeneralClickButton, OptionButtonSetWidget
+	from .Basics.Enums.FilterOptions import SongType, Timeline
+	from .Basics.BasicClass import (
+		GeneralClickButton, OptionButtonSetWidget, OptionCheckBoxSetWidget
+	)
 
 class FilterButton(QPushButton): 
 
@@ -26,7 +30,7 @@ class FilterButton(QPushButton):
 	filter_option_changed = pyqtSignal()
 
 	def __init__(self, 
-			default_options: str, btn_size: int, 
+			default_options: Dict[str, Any], btn_size: int, 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(parent)
@@ -103,14 +107,26 @@ class FilterButton(QPushButton):
 		else: 
 			self.filter_dialog.setCurrentFilterOptions(current_option)
 
-	def getCurrentFilterOptions(self) -> SongType: 
+	def getCurrentFilterOptions(self) -> Tuple[SongType, Timeline]: 
 		return self.filter_dialog.getCurrentFilterOptions()
 
-	def setCurrentFilterOptions(self, option: SongType) -> None: 
+	def setCurrentFilterOptions(self, option: Tuple[SongType, Timeline]) -> None: 
 		self.filter_dialog.setCurrentFilterOptions(option)
 
-	def setNormalState(self, search_content: str, filter_options: SongType) -> None: 
-		self._is_normal = (search_content == "") and (filter_options == SongType.ALL)
+	def getCurrentFilterOptionsDict(self) -> Dict[str, Any]: 
+		song_type, timeline = self.getCurrentFilterOptions()
+		return {
+			"songs": song_type.value, 
+			"timeline": Timeline.toStrList(timeline)
+		}
+
+	def setCurrentFilterOptionsDict(self, option: Dict[str, Any]) -> None: 
+		song_type = SongType.fromStr(option["songs"])
+		timeline = Timeline.fromStrList(option["timeline"])
+		self.setCurrentFilterOptions((song_type, timeline))
+
+	def setNormalState(self, search_content: str, filter_options: Tuple[SongType, Timeline]) -> None: 
+		self._is_normal = (search_content == "") and (filter_options == (SongType.ALL, Timeline.PLAYABLE))
 		self.update()
 
 
@@ -118,16 +134,20 @@ class FilterDialog(QDialog):
 
 	dialog_bonus = 1.2
 
-	def __init__(self, btn_size: int, default_options: str, parent: Optional[QWidget]=None) -> None: 
+	def __init__(self, btn_size: int, default_options: Dict[str, Any], parent: Optional[QWidget]=None) -> None: 
 		super().__init__(parent)
 		btn_size = int(btn_size * self.dialog_bonus)
 		self.button_height = btn_size
 		self.button_width = self.button_height * 3
 		self.my_layout = QVBoxLayout(self)
 		self.filter_columns = OptionButtonSetWidget(btn_size, 
-			"楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], default_options, self
+			"楽曲", ["すべて", "書き下ろし楽曲", "APPENDあり"], default_options.get("songs", "すべて"), parent=self
+		)
+		self.timeline = OptionCheckBoxSetWidget(
+			btn_size, "時間軸", ["サービス終了", "プレイ可能", "未公開"], default_options.get("timeline", ["プレイ可能"]), parent=self
 		)
 		self.my_layout.addWidget(self.filter_columns)
+		self.my_layout.addWidget(self.timeline)
 
 		self.cancel_button = GeneralClickButton(self.button_width, self.button_height, QColor(255, 255, 255), "キャンセル", self)
 		self.accept_button = GeneralClickButton(self.button_width, self.button_height, QColor("#77EEDD"), "決定", self)
@@ -144,8 +164,12 @@ class FilterDialog(QDialog):
 
 		self.setModal(True)
 
-	def getCurrentFilterOptions(self) -> SongType: 
-		return SongType.fromStr(self.filter_columns.getCurrentOption())
+	def getCurrentFilterOptions(self) -> Tuple[SongType, Timeline]: 
+		return (
+			SongType.fromStr(self.filter_columns.getCurrentOption()), 
+			Timeline.fromStrList(self.timeline.getCurrentOptions())
+		)
 
-	def setCurrentFilterOptions(self, option: SongType) -> None: 
-		self.filter_columns.setCurrentOption(option.value)
+	def setCurrentFilterOptions(self, option: Tuple[SongType, Timeline]) -> None: 
+		self.filter_columns.setCurrentOption(option[0].value)
+		self.timeline.setCurrentOptions(Timeline.toStrList(option[1]))
