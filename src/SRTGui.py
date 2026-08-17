@@ -163,6 +163,12 @@ class ArrowKeyFilter(QObject):
 	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
 		if event.type() == QEvent.Type.KeyPress: 
 			assert isinstance(event, QKeyEvent)
+			if event.modifiers() & Qt.KeyboardModifier.ShiftModifier: # type: ignore
+				if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down): 
+					movement = -1 if event.key() == Qt.Key.Key_Up else 1
+					self.group_buttons.moveGroup(movement)
+					self.refresh_func()
+					return True
 			match event.key(): 
 				case Qt.Key.Key_Up | Qt.Key.Key_Down: 
 					movement = -1 if event.key() == Qt.Key.Key_Up else 1
@@ -180,6 +186,11 @@ class ArrowKeyFilter(QObject):
 							if difficulties[current_diff_index] is not None: 
 								break
 					self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+					self.refresh_func()
+					return True
+				case Qt.Key.Key_PageUp | Qt.Key.Key_PageDown: 
+					movement = -1 if event.key() == Qt.Key.Key_PageUp else 1
+					self.group_buttons.moveGroup(movement)
 					self.refresh_func()
 					return True
 				case _: 

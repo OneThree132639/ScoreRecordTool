@@ -430,6 +430,21 @@ class GroupButtonSet(QListWidget):
 				btn.setChecked(True)
 				return
 
+	def getCurrentCheckedGroupIndex(self) -> int: 
+		for index, btn in enumerate(self.button_list): 
+			if btn.isChecked(): 
+				return index
+		return -1
+
+	def setCurrentCheckedGroupIndex(self, index: int) -> None: 
+		if 0 <= index < len(self.button_list): 
+			self.button_list[index].setChecked(True)
+
+	def moveGroup(self, movement: int) -> None: 
+		current_index = self.getCurrentCheckedGroupIndex()
+		target_index = (current_index + movement) % len(self.button_list)
+		self.setCurrentCheckedGroupIndex(target_index)
+
 class AddGroupButton(QPushButton): 
 
 	rounded_percentage = 0.05
@@ -650,3 +665,7 @@ class GroupButtonWidget(QWidget):
 
 	def renameButton(self, old_name: str, new_name: str) -> None: 
 		self.group_button_set.renameButton(old_name, new_name)
+
+	def moveGroup(self, movement: int) -> None: 
+		self.group_button_set.moveGroup(movement)
+		self._onGroupButtonClicked()
