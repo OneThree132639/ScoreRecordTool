@@ -132,6 +132,76 @@ class PublicMembers:
 			for child in current_widget.findChildren(QWidget): 
 				stack.append(child)
 
+class ArrowKeyFilter(QObject): 
+
+	def __init__(self, music_list_widget: MusicListWidget, 
+			group_buttons: Union[GroupButtonSet, GroupButtonWidget], 
+			diff_button_set: DifficultyButtonSet, 
+			music_table: Optional[pd.DataFrame], 
+			refresh_func: Callable[[], None], 
+			parent: QWidget
+		) -> None: 
+		super().__init__(parent)
+		self.music_list_widget = music_list_widget
+		self.group_buttons = group_buttons
+		self.diff_button_set = diff_button_set
+		self.refresh_func = refresh_func
+		self.music_table = music_table
+
+		parent.installEventFilter(self)
+		self.recursivelyInstallEventFilter(self.music_list_widget)
+		self.recursivelyInstallEventFilter(self.group_buttons)
+
+	def recursivelyInstallEventFilter(self, widget: QWidget) -> None: 
+		stack = [widget]
+		while stack: 
+			current_widget = stack.pop()
+			current_widget.installEventFilter(self)
+			for child in current_widget.findChildren(QWidget): 
+				stack.append(child)
+
+	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.KeyPress: 
+			assert isinstance(event, QKeyEvent)
+			match event.key(): 
+				case Qt.Key.Key_Up | Qt.Key.Key_Down: 
+					movement = -1 if event.key() == Qt.Key.Key_Up else 1
+					self.music_list_widget.moveIndex(movement)
+					return True
+				case Qt.Key.Key_Left | Qt.Key.Key_Right: 
+					movement = -1 if event.key() == Qt.Key.Key_Left else 1
+					current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+					difficulties = PublicMembers._getMusicLevels(self.music_table, self.music_list_widget.getCurrentMusicId())
+					if all(diff is None for diff in difficulties): 
+						current_diff_index = (current_diff_index + movement) % len(difficulties)
+					else: 
+						while True: 
+							current_diff_index = (current_diff_index + movement) % len(difficulties)
+							if difficulties[current_diff_index] is not None: 
+								break
+					self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+					self.refresh_func()
+					return True
+				case _: 
+					return False
+		return False
+
+class ClickFilter(QObject): 
+
+	def __init__(self, box_list: List[QWidget], parent: QWidget) -> None: 
+		super().__init__(parent)
+		self.box_list = box_list
+		self.my_parent = parent
+		parent.installEventFilter(self)
+
+	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
+		if event.type() == QEvent.Type.MouseButtonPress: 
+			assert isinstance(event, QMouseEvent)
+			for box in self.box_list: 
+				if not box.geometry().contains(self.my_parent.mapFromGlobal(event.globalPos())): 
+					box.clearFocus()
+					return True
+		return False
 class CustomListDialog(QDialog): 
 
 	all_diff_height_percentage = 0.05
@@ -245,9 +315,11 @@ class CustomListDialog(QDialog):
 
 		self.all_diff.checkbox_indicator.toggled.connect(lambda: self.music_list_widget.setAllDiff(self.all_diff.isChecked()))
 
-		self.installEventFilter(self)
-		PublicMembers._recursivelyInstallEventFilter(self, self.music_list_widget)
-		PublicMembers._recursivelyInstallEventFilter(self, self.group_button_set)
+		self.arrow_filter = ArrowKeyFilter(
+			self.music_list_widget, self.group_button_set, self.diff_button_set, 
+			self.music_table, self.refresh, self
+		)
+		self.click_filter = ClickFilter([self.search_box, self.list_title], self)
 
 	def initRefresh(self, 
 			music_table: pd.DataFrame, vocal_table: pd.DataFrame, 
@@ -346,52 +418,6 @@ class CustomListDialog(QDialog):
 		diff_list: pd.DataFrame = music_table[music_table["id_musics"] == music_id]
 		difficulties = [Difficulty.fromStr(diff) for diff in diff_list["musicDifficulty"].values]
 		return difficulties
-
-	def eventFilter(self, watched: QObject, event: QEvent) -> bool: 
-		if event.type() == QEvent.Type.MouseButtonPress: 
-			assert isinstance(event, QMouseEvent)
-			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
-				self.search_box.clearFocus()
-				return True
-			if not self.list_title.geometry().contains(self.mapFromGlobal(event.globalPos())): 
-				self.list_title.clearFocus()
-				return True
-		if event.type() == QEvent.Type.KeyPress: 
-			assert isinstance(event, QKeyEvent)
-			if event.key() == Qt.Key.Key_Up: 
-				self.music_list_widget.moveIndex(-1)
-				return True
-			elif event.key() == Qt.Key.Key_Down: 
-				self.music_list_widget.moveIndex(1)
-				return True
-			elif event.key() == Qt.Key.Key_Left: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				difficulties = PublicMembers._getMusicLevels(self.music_table, self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index - 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index - 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-				return True
-			elif event.key() == Qt.Key.Key_Right: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				difficulties = PublicMembers._getMusicLevels(self.music_table, self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index + 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index + 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-				return True
-		return super().eventFilter(watched, event)
-
 
 	def getCurrentCheckedIdDiffList(self) -> List[Tuple[int, str]]: 
 		id_diff_list = self.music_list_widget.checked_list.copy()
@@ -527,9 +553,11 @@ class MainWindow(QMainWindow):
 		self.group_button_widget.sub_button.clicked.connect(self._onSubGroupButtonClicked)
 		self.group_button_widget.setting_button.clicked.connect(self._onSettingGroupButtonClicked)
 
-		self.installEventFilter(self)
-		PublicMembers._recursivelyInstallEventFilter(self, self.music_list_widget)
-		PublicMembers._recursivelyInstallEventFilter(self, self.group_button_widget)
+		self.arrow_filter = ArrowKeyFilter(
+			self.music_list_widget, self.group_button_widget, self.diff_button_set, 
+			self.data_manager.music_table, self.refresh, self
+		)
+		self.click_filter = ClickFilter([self.search_box], self)
 
 	def _chooseResourceFile(self) -> bool: 
 		msg_box = QMessageBox(self)
