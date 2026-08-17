@@ -123,6 +123,15 @@ class PublicMembers:
 		difficulties = tuple(diff_list.loc[diff, "playLevel"] if diff in diff_list.index else None for diff in diffs)
 		return difficulties # type: ignore
 
+	@classmethod
+	def _recursivelyInstallEventFilter(cls, parent: QWidget, widget: QWidget) -> None: 
+		stack = [widget]
+		while stack: 
+			current_widget = stack.pop()
+			current_widget.installEventFilter(parent)
+			for child in current_widget.findChildren(QWidget): 
+				stack.append(child)
+
 class CustomListDialog(QDialog): 
 
 	all_diff_height_percentage = 0.05
@@ -237,6 +246,8 @@ class CustomListDialog(QDialog):
 		self.all_diff.checkbox_indicator.toggled.connect(lambda: self.music_list_widget.setAllDiff(self.all_diff.isChecked()))
 
 		self.installEventFilter(self)
+		PublicMembers._recursivelyInstallEventFilter(self, self.music_list_widget)
+		PublicMembers._recursivelyInstallEventFilter(self, self.group_button_set)
 
 	def initRefresh(self, 
 			music_table: pd.DataFrame, vocal_table: pd.DataFrame, 
@@ -345,24 +356,6 @@ class CustomListDialog(QDialog):
 			if not self.list_title.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.list_title.clearFocus()
 				return True
-		return super().eventFilter(watched, event)
-
-
-	def getCurrentCheckedIdDiffList(self) -> List[Tuple[int, str]]: 
-		id_diff_list = self.music_list_widget.checked_list.copy()
-		return [(music_id, difficulty.value.lower()) for music_id, difficulty in id_diff_list]
-
-	def setCurrentCheckedIdDiffList(self, id_diff_list: List[Tuple[int, str]]) -> None: 
-		self.music_list_widget.checked_list = [(music_id, Difficulty.fromStr(difficulty)) for music_id, difficulty in id_diff_list]
-		self.music_list_widget.updateCheckbox()
-
-	def getCurrentTitle(self) -> str: 
-		return self.list_title.text()
-
-	def setCurrentTitle(self, title: str) -> None: 
-		self.list_title.setText(title)
-
-	def event(self, event: QEvent) -> bool: 
 		if event.type() == QEvent.Type.KeyPress: 
 			assert isinstance(event, QKeyEvent)
 			if event.key() == Qt.Key.Key_Up: 
@@ -373,7 +366,6 @@ class CustomListDialog(QDialog):
 				return True
 			elif event.key() == Qt.Key.Key_Left: 
 				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				logging.debug("current_diff_index: %d", current_diff_index)
 				difficulties = PublicMembers._getMusicLevels(self.music_table, self.music_list_widget.getCurrentMusicId())
 				if all(diff is None for diff in difficulties): 
 					current_diff_index = (current_diff_index - 1) % len(difficulties)
@@ -398,7 +390,22 @@ class CustomListDialog(QDialog):
 				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
 				self.refresh()
 				return True
-		return super().event(event)
+		return super().eventFilter(watched, event)
+
+
+	def getCurrentCheckedIdDiffList(self) -> List[Tuple[int, str]]: 
+		id_diff_list = self.music_list_widget.checked_list.copy()
+		return [(music_id, difficulty.value.lower()) for music_id, difficulty in id_diff_list]
+
+	def setCurrentCheckedIdDiffList(self, id_diff_list: List[Tuple[int, str]]) -> None: 
+		self.music_list_widget.checked_list = [(music_id, Difficulty.fromStr(difficulty)) for music_id, difficulty in id_diff_list]
+		self.music_list_widget.updateCheckbox()
+
+	def getCurrentTitle(self) -> str: 
+		return self.list_title.text()
+
+	def setCurrentTitle(self, title: str) -> None: 
+		self.list_title.setText(title)
 
 class MainWindow(QMainWindow): 
 
@@ -521,6 +528,8 @@ class MainWindow(QMainWindow):
 		self.group_button_widget.setting_button.clicked.connect(self._onSettingGroupButtonClicked)
 
 		self.installEventFilter(self)
+		PublicMembers._recursivelyInstallEventFilter(self, self.music_list_widget)
+		PublicMembers._recursivelyInstallEventFilter(self, self.group_button_widget)
 
 	def _chooseResourceFile(self) -> bool: 
 		msg_box = QMessageBox(self)
@@ -798,6 +807,38 @@ class MainWindow(QMainWindow):
 			if not self.search_box.geometry().contains(self.mapFromGlobal(event.globalPos())): 
 				self.search_box.clearFocus()
 				return True
+		if event.type() == QEvent.Type.KeyPress: 
+			assert isinstance(event, QKeyEvent)
+			if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down, Qt.Key.Key_Left, Qt.Key.Key_Right): 
+				if event.key() == Qt.Key.Key_Up: 
+					self.music_list_widget.moveIndex(-1)
+				elif event.key() == Qt.Key.Key_Down: 
+					self.music_list_widget.moveIndex(1)
+				elif event.key() == Qt.Key.Key_Left: 
+					current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+					difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, self.music_list_widget.getCurrentMusicId())
+					if all(diff is None for diff in difficulties): 
+						current_diff_index = (current_diff_index - 1) % len(difficulties)
+					else: 
+						while True: 
+							current_diff_index = (current_diff_index - 1) % len(difficulties)
+							if difficulties[current_diff_index] is not None: 
+								break
+					self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+					self.refresh()
+				elif event.key() == Qt.Key.Key_Right: 
+					current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
+					difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, self.music_list_widget.getCurrentMusicId())
+					if all(diff is None for diff in difficulties): 
+						current_diff_index = (current_diff_index + 1) % len(difficulties)
+					else: 
+						while True: 
+							current_diff_index = (current_diff_index + 1) % len(difficulties)
+							if difficulties[current_diff_index] is not None: 
+								break
+					self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
+					self.refresh()
+				return True
 		return super().eventFilter(watched, event)
 
 	def _onAddGroupButtonClicked(self) -> None: 
@@ -911,41 +952,3 @@ class MainWindow(QMainWindow):
 			break
 
 		self._saveConfig()
-
-	def event(self, event: QEvent) -> bool: 
-		if event.type() == QEvent.Type.KeyPress: 
-			assert isinstance(event, QKeyEvent)
-			if event.key() == Qt.Key.Key_Up: 
-				self.music_list_widget.moveIndex(-1)
-				return True
-			elif event.key() == Qt.Key.Key_Down: 
-				self.music_list_widget.moveIndex(1)
-				return True
-			elif event.key() == Qt.Key.Key_Left: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				logging.debug("current_diff_index: %d", current_diff_index)
-				difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index - 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index - 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-				return True
-			elif event.key() == Qt.Key.Key_Right: 
-				current_diff_index = Difficulty.toIndex(self.diff_button_set.getDifficulty())
-				difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, self.music_list_widget.getCurrentMusicId())
-				if all(diff is None for diff in difficulties): 
-					current_diff_index = (current_diff_index + 1) % len(difficulties)
-				else: 
-					while True: 
-						current_diff_index = (current_diff_index + 1) % len(difficulties)
-						if difficulties[current_diff_index] is not None: 
-							break
-				self.diff_button_set.setForcedDifficulty(Difficulty.fromIndex(current_diff_index))
-				self.refresh()
-				return True
-		return super().event(event)
