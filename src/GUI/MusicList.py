@@ -42,35 +42,10 @@ class BasicCard(QWidget):
 
 	checkbox_toggled = pyqtSignal(int, Difficulty, bool)
 
-	@overload
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: Literal[None], pixmap: Literal[None], has_check_box: bool=False, 
-			parent: Optional[QWidget]=None
-		) -> None: ...
-
-	@overload
-	def __init__(self, 
-			small_height: int, large_height: int, icon_size: int, label_size: int, 
-			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: np.ndarray, pixmap: Literal[None], has_check_box: bool=False, 
-			parent: Optional[QWidget]=None
-		) -> None: ...
-
-	@overload
-	def __init__(self, 
-			small_height: int, large_height: int, icon_size: int, label_size: int, 
-			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: QPixmap, pixmap: QPixmap, has_check_box: bool=False, 
-			parent: Optional[QWidget]=None
-		) -> None: ...
-
-	def __init__(self, 
-			small_height: int, large_height: int, icon_size: int, label_size: int, 
-			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			cover: Optional[Union[np.ndarray, QPixmap]], 
-			pixmap: Optional[QPixmap], 
+			get_pixmap_func: Callable[[int], Optional[QPixmap]], 
 			has_check_box: bool=False, 
 			parent: Optional[QWidget]=None
 		) -> None: 
@@ -85,28 +60,23 @@ class BasicCard(QWidget):
 		self.title = title
 		self.difficulty = difficulty
 		self.level = level
-		self.cover = cover
-		self.pixmap: Optional[QPixmap] = None
-		self.scaled_pixmap: Optional[QPixmap] = None
 
 		self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
 
 		self.cover_label = QLabel(self)
 		self.cover_label.setFixedSize(self.icon_size, self.icon_size)
 		self.cover_label.setScaledContents(True)
-		if self.cover is None: 
+		pixmap = get_pixmap_func(self.music_id)
+		if pixmap is None: 
 			self.cover_label.setText("ジャケット画像がありません")
 			font = QFont()
 			font.setPixelSize(self.small_height)
 			self.cover_label.setFont(font)
-		elif isinstance(self.cover, np.ndarray): 
-			self.pixmap = self._np_to_pixmap(self.cover)
-			self.scaled_pixmap = self.pixmap.scaled(self.cover_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-			self.cover_label.setPixmap(self.scaled_pixmap)
-		elif isinstance(self.cover, QPixmap): 
-			self.cover_label.setPixmap(self.cover)
-			self.pixmap = pixmap
-			self.scaled_pixmap = cover
+		else: 
+			scaled_pixmap = pixmap.scaled(
+				self.cover_label.size(), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+			)
+			self.cover_label.setPixmap(scaled_pixmap)
 
 		self.info_widget = QWidget(self)
 		self.info_layout = QVBoxLayout(self.info_widget)
@@ -123,16 +93,6 @@ class BasicCard(QWidget):
 		self.my_layout.setContentsMargins(other_margin, other_margin, side_margin, other_margin)
 		self.setLayout(self.my_layout)
 
-	def _np_to_pixmap(self, image: np.ndarray) -> QPixmap: 
-		if image.dtype != np.uint8: 
-			image = image.astype(np.uint8)
-		image = np.ascontiguousarray(image)
-		shape: Tuple[int, int, int] = image.shape
-		height, width, channels = shape
-		bytes_per_line = channels * width
-		qimage = QImage(image.copy().data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888) # type: ignore
-		return QPixmap.fromImage(qimage)
-
 	def getData(self) -> Any: 
 		raise NotImplementedError("Subclasses should implement this method. ")
 
@@ -148,37 +108,16 @@ class BasicCard(QWidget):
 	
 class NormalCard(BasicCard): 
 
-	@overload
-	def __init__(self, 
-			small_height: int, large_height: int, icon_size: int, label_size: int, 
-			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
-			cover: Literal[None], pixmap: Literal[None], has_check_box: bool=False, parent: Optional[QWidget]=None
-		) -> None: ...
-
-	@overload
-	def __init__(self, 
-			small_height: int, large_height: int, icon_size: int, label_size: int, 
-			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
-			cover: np.ndarray, pixmap: Literal[None], has_check_box: bool=False, parent: Optional[QWidget]=None
-		) -> None: ...
-
-	@overload
-	def __init__(self, 
-			small_height: int, large_height: int, icon_size: int, label_size: int, 
-			music_id: int, title: str, difficulty: Difficulty, level: int, config: Dict[str, str], 
-			cover: QPixmap, pixmap: QPixmap, has_check_box: bool=False, parent: Optional[QWidget]=None
-		) -> None: ...
-
 	def __init__(self, 
 			small_height: int, large_height: int, icon_size: int, label_size: int, 
 			music_id: int, title: str, difficulty: Difficulty, level: int, 
-			config: Dict[str, str], cover: Optional[Union[np.ndarray, QPixmap]], 
-			pixmap: Optional[QPixmap], has_check_box: bool=False, 
+			config: Dict[str, str], get_pixmap_func: Callable[[int], Optional[QPixmap]], 
+			has_check_box: bool=False, 
 			parent: Optional[QWidget]=None
 		) -> None: 
 		super().__init__(
 			small_height, large_height, icon_size, label_size, 
-			music_id, title, difficulty, level, cover, pixmap, 
+			music_id, title, difficulty, level, get_pixmap_func, 
 			has_check_box=has_check_box, parent=parent
 		)
 		self.config = config
@@ -199,12 +138,10 @@ class NormalCard(BasicCard):
 		else: 
 			self.check_box.hide()
 
-	def getData(self) -> Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]: 
-		pixmap = None if self.pixmap is None else self.pixmap.copy()
-		scaled_pixmap = None if self.scaled_pixmap is None else self.scaled_pixmap.copy()
+	def getData(self) -> Tuple[int, str, Difficulty, int, Dict[str, str]]: 
 		return (
 			self.music_id, self.title, self.difficulty, self.level, 
-			self.config, scaled_pixmap, pixmap
+			self.config
 		)
 
 	def pause(self) -> None: 
@@ -219,12 +156,12 @@ class MusicCard(BasicCard):
 		small_height: int, large_height: int, icon_size: int, label_size: int, 
 		music_id: int, title: str, composer: str, vocal: str, 
 		difficulty: Difficulty, level: int, config: Dict[str, Any], 
-		cover: Optional[Union[np.ndarray, QPixmap]], pixmap: Optional[QPixmap], 
+		get_pixmap_func: Callable[[int], Optional[QPixmap]], 
 		has_check_box: bool=False, 
 		parent: Optional[QWidget]=None
 	) -> None: 
 		super().__init__(small_height, large_height, icon_size, label_size, 
-			music_id, title, difficulty, level, cover, pixmap, 
+			music_id, title, difficulty, level, get_pixmap_func, 
 			has_check_box=has_check_box, parent=parent
 		)
 		self.composer = composer
@@ -251,11 +188,9 @@ class MusicCard(BasicCard):
 		else: 
 			self.check_box.hide()
 
-	def getData(self) -> Tuple[int, str, str, str, Difficulty, int, Dict[str, Any], Optional[QPixmap], Optional[QPixmap]]: 
-		pixmap = None if self.pixmap is None else self.pixmap.copy()
-		scaled_pixmap = None if self.scaled_pixmap is None else self.scaled_pixmap.copy()
+	def getData(self) -> Tuple[int, str, str, str, Difficulty, int, Dict[str, Any]]: 
 		return (self.music_id, self.title, self.composer, self.vocal, 
-			self.difficulty, self.level, self.config, scaled_pixmap, pixmap
+			self.difficulty, self.level, self.config
 		)
 
 	def pause(self) -> None: 
@@ -846,16 +781,17 @@ class MusicListWidget(QStackedWidget):
 		self.has_check_box = has_check_box
 		self.empty_music_list = MusicList(self.large_height, has_check_box=has_check_box, parent=self)
 		self.addWidget(self.empty_music_list)
+		self.pixmap_dict: Dict[int, Optional[QPixmap]] = {}
 		self.map_dict: Dict[Tuple[SongType, Timeline], Dict[SortType, Dict[Union[Group, str], Dict[Difficulty, Dict[str, int]]]]] = {}
 		self.checked_list: List[Tuple[int, Difficulty]] = []
 		self.all_diff = all_diff
 		self.get_all_diff_func = get_all_diff_func
 
 		self.normal_cache: Dict[Difficulty, 
-			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str], Optional[QPixmap], Optional[QPixmap]]]
+			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str]]]
 		] = {}
 		self.music_cache: Dict[Difficulty, 
-			Dict[int, Tuple[int, str, str, str, Difficulty, int, Dict[str, Any], Optional[QPixmap], Optional[QPixmap]]]
+			Dict[int, Tuple[int, str, str, str, Difficulty, int, Dict[str, Any]]]
 		] = {}
 
 	def _getMusicListIndex(self, 
@@ -901,6 +837,30 @@ class MusicListWidget(QStackedWidget):
 		if current_list is not None: 
 			current_list.setMusicId(music_id)
 
+	def getCoverPixmap(self, 
+			music_id: int, get_cover_func: Callable[[int], Optional[np.ndarray]]
+		) -> Optional[QPixmap]: 
+		if music_id in self.pixmap_dict: 
+			return self.pixmap_dict[music_id]
+		cover = get_cover_func(music_id)
+
+		def npToPixmap(image: np.ndarray) -> QPixmap: 
+			if image.dtype != np.uint8: 
+				image = image.astype(np.uint8)
+			image = np.ascontiguousarray(image)
+			shape: Tuple[int, int, int] = image.shape
+			height, width, channels = shape
+			bytes_per_line = channels * width
+			qimage = QImage(image.copy().data, width, height, bytes_per_line, QImage.Format.Format_RGBA8888) # type: ignore
+			return QPixmap.fromImage(qimage)
+
+		if cover is None: 
+			self.pixmap_dict[music_id] = None
+			return None
+		pixmap = npToPixmap(cover)
+		self.pixmap_dict[music_id] = pixmap
+		return pixmap
+
 	def _selectVocal(self, music_id: int, vocal_table: pd.DataFrame) -> str: 
 		vocal_rows: pd.DataFrame = vocal_table[vocal_table["musicId"] == music_id]
 		sekai_ver: pd.DataFrame = vocal_rows[vocal_rows["caption"] == "セカイver."]
@@ -919,29 +879,28 @@ class MusicListWidget(QStackedWidget):
 			difficulty: Difficulty, config: Dict[str, Any], 
 			get_cover_func: Callable[[int], Optional[np.ndarray]]
 		) -> QWidget: 
-		music_id = row["id_musics"]
+		music_id = int(row["id_musics"])
+		get_pixmap_func = lambda music_id: self.getCoverPixmap(music_id, get_cover_func)
 		if is_music_card: 
 			if difficulty not in self.music_cache: 
 				self.music_cache[difficulty] = {}
 			if music_id in self.music_cache[difficulty]: 
 				cached_data = self.music_cache[difficulty][music_id]
-				scaled_pixmap = None if cached_data[7] is None else cached_data[7].copy()
-				pixmap = None if cached_data[8] is None else cached_data[8].copy()
 				return MusicCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
 					cached_data[0], cached_data[1], cached_data[2], cached_data[3], cached_data[4], 
-					cached_data[5], cached_data[6], scaled_pixmap, pixmap, has_check_box=self.has_check_box
+					cached_data[5], cached_data[6], 
+					get_pixmap_func=get_pixmap_func, has_check_box=self.has_check_box
 				)
 			else: 
 				title = row["title"]
-				cover = get_cover_func(int(music_id))
 				composer = row["artistsName"]
 				vocal = self._selectVocal(music_id, vocal_table)
 				level = row["playLevel"]
 				card = MusicCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
-					music_id, title, composer, vocal, difficulty, level, config, cover, None, 
-					has_check_box=self.has_check_box
+					music_id, title, composer, vocal, difficulty, level, config, 
+					get_pixmap_func=get_pixmap_func, has_check_box=self.has_check_box
 				)
 				self.music_cache[difficulty][music_id] = card.getData()
 				return card
@@ -950,21 +909,18 @@ class MusicListWidget(QStackedWidget):
 				self.normal_cache[difficulty] = {}
 			if music_id in self.normal_cache[difficulty]: 
 				cached_data = self.normal_cache[difficulty][music_id]
-				scaled_pixmap = None if cached_data[5] is None else cached_data[5].copy()
-				pixmap = None if cached_data[6] is None else cached_data[6].copy()
 				return NormalCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
 					cached_data[0], cached_data[1], cached_data[2], 
-					cached_data[3], cached_data[4], scaled_pixmap, pixmap, 
+					cached_data[3], cached_data[4], get_pixmap_func=get_pixmap_func, 
 					has_check_box=self.has_check_box
 				)
 			else: 
 				title = row["title"]
-				cover = get_cover_func(int(music_id))
 				level = row["playLevel"]
 				card = NormalCard(
 					self.small_height, self.large_height, self.icon_size, self.label_size, 
-					music_id, title, difficulty, level, config, cover, None, 
+					music_id, title, difficulty, level, config, get_pixmap_func=get_pixmap_func, 
 					has_check_box=self.has_check_box
 				)
 				self.normal_cache[difficulty][music_id] = card.getData()
@@ -1079,13 +1035,16 @@ class MusicListWidget(QStackedWidget):
 				self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, idx)
 
 
-	def updateDisplayCard(self, difficulty: Difficulty, card: DisplayCard) -> None: 
+	def updateDisplayCard(self, 
+			difficulty: Difficulty, get_cover_func: Callable[[int], Optional[np.ndarray]], 
+			card: DisplayCard
+		) -> None: 
 		music_id = self.getCurrentMusicId()
 		if music_id == 0: 
 			card.updateData("", "", "", None)
 			return
 		data = self.music_cache[difficulty][music_id]
-		pixmap = None if data[8] is None else data[8].copy()
+		pixmap = self.getCoverPixmap(music_id, get_cover_func)
 		card.updateData(data[1], data[2], data[3], pixmap)
 
 	def randomSmoothScrolling(self, music_id: int) -> None: 

@@ -418,7 +418,7 @@ class CustomListDialog(QDialog):
 			difficulties = PublicMembers._getMusicLevels(self.music_table, music_id)
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.diff_button_set.setLevels(difficulties, difficulty)
-		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.music_list_widget.updateDisplayCard(difficulty, self.get_cover_func,self.display_card)
 		self.display_card.pause()
 		self.display_card.resume() 
 
@@ -456,7 +456,7 @@ class CustomListDialog(QDialog):
 			music_list, vocal_list, self.diff_btn_config[difficulty.value.lower()]["pressed"], 
 			self.get_cover_func, music_id
 		)
-		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.music_list_widget.updateDisplayCard(difficulty, self.get_cover_func, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
 
@@ -762,7 +762,7 @@ class MainWindow(QMainWindow):
 			difficulties = PublicMembers._getMusicLevels(self.data_manager.music_table, music_id)
 		self.diff_button_set.setLevels((None, None, None, None, None, None), difficulty)
 		self.diff_button_set.setLevels(difficulties, difficulty)
-		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.music_list_widget.updateDisplayCard(difficulty, self.data_manager.getCoverArray, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
 		self._saveConfig()
@@ -801,7 +801,7 @@ class MainWindow(QMainWindow):
 			music_list, vocal_list, self.data_manager.config["button"][difficulty.value.lower()]["pressed"], 
 			self.data_manager.getCoverArray, music_id
 		)
-		self.music_list_widget.updateDisplayCard(difficulty, self.display_card)
+		self.music_list_widget.updateDisplayCard(difficulty, self.data_manager.getCoverArray, self.display_card)
 		self.display_card.pause()
 		self.display_card.resume()
 
