@@ -8,7 +8,7 @@ from typing import (
 from typing import overload
 
 from PyQt5.QtCore import (
-	pyqtSignal, QEasingCurve, QPropertyAnimation, Qt, QSize, QTimer
+	pyqtSignal, QEasingCurve, QObject, QPropertyAnimation, Qt, QSize, QTimer
 )
 from PyQt5.QtGui import (
 	QFont, QImage, QPixmap, QResizeEvent
@@ -787,6 +787,8 @@ class MusicListWidget(QStackedWidget):
 		self.all_diff = all_diff
 		self.get_all_diff_func = get_all_diff_func
 
+		self.key_filter: Optional[QObject] = None
+
 		self.normal_cache: Dict[Difficulty, 
 			Dict[int, Tuple[int, str, Difficulty, int, Dict[str, str]]]
 		] = {}
@@ -945,6 +947,14 @@ class MusicListWidget(QStackedWidget):
 			music_height = music_card.sizeHint().height()
 		container.addWidget(normal_card)
 		container.addWidget(music_card)
+
+		stack = [container]
+		while stack: 
+			current_widget = stack.pop()
+			current_widget.installEventFilter(self.key_filter)
+			for child in current_widget.findChildren(QWidget): 
+				stack.append(child)
+		
 		return row["id_musics"], container, normal_height, music_height
 
 	def appendList(self, 
@@ -967,6 +977,7 @@ class MusicListWidget(QStackedWidget):
 			identifier=(filter_options, sort_type, group, difficulty, search_content), 
 			parent=self
 		)
+		new_music_list.installEventFilter(self.key_filter)
 		new_music_list.refreshData(
 			music_list, vocal_list, difficulty, config,
 			get_cover_func=get_cover_func, 
@@ -1033,7 +1044,6 @@ class MusicListWidget(QStackedWidget):
 			if music_list is not None and music_list.identifier is not None: 
 				filter_options, sort_type, group, difficulty, search_content = music_list.identifier
 				self._setMusicListIndex(filter_options, sort_type, group, difficulty, search_content, idx)
-
 
 	def updateDisplayCard(self, 
 			difficulty: Difficulty, get_cover_func: Callable[[int], Optional[np.ndarray]], 
@@ -1117,3 +1127,6 @@ class MusicListWidget(QStackedWidget):
 		current_list: MusicList = self.currentWidget()
 		if current_list is not None: 
 			current_list.currentCheckboxCheckedSignalEmission(checked)
+
+	def setKeyFilter(self, key_filter: QObject) -> None: 
+		self.key_filter = key_filter

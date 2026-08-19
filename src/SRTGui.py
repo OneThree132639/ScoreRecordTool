@@ -148,7 +148,7 @@ class PublicMembers:
 			for child in current_widget.findChildren(QWidget): 
 				stack.append(child)
 
-class ArrowKeyFilter(QObject): 
+class KeyFilter(QObject): 
 
 	def __init__(self, music_list_widget: MusicListWidget, 
 			group_buttons: Union[GroupButtonSet, GroupButtonWidget], 
@@ -171,6 +171,8 @@ class ArrowKeyFilter(QObject):
 		parent.installEventFilter(self)
 		self.recursivelyInstallEventFilter(self.music_list_widget)
 		self.recursivelyInstallEventFilter(self.group_buttons)
+
+		self.music_list_widget.setKeyFilter(self)
 
 	def recursivelyInstallEventFilter(self, widget: QWidget) -> None: 
 		stack = [widget]
@@ -246,6 +248,7 @@ class ClickFilter(QObject):
 					box.clearFocus()
 					return True
 		return False
+
 class CustomListDialog(QDialog): 
 
 	all_diff_height_percentage = 0.05
@@ -359,7 +362,7 @@ class CustomListDialog(QDialog):
 
 		self.all_diff.checkbox_indicator.toggled.connect(lambda: self.music_list_widget.setAllDiff(self.all_diff.isChecked()))
 
-		self.arrow_filter = ArrowKeyFilter(
+		self.key_filter = KeyFilter(
 			self.music_list_widget, self.group_button_set, self.diff_button_set, 
 			self.music_table, self.refresh,
 			random_rolling_func=None, all_diff=self.all_diff, parent=self
@@ -374,7 +377,7 @@ class CustomListDialog(QDialog):
 		self.music_table = music_table
 		self.vocal_table = vocal_table
 		self.music_tags = music_tags
-		self.arrow_filter.music_table = music_table
+		self.key_filter.music_table = music_table
 
 	def initLoad(self, 
 			group: Group, search_content: str, filter_option: Tuple[SongType, Timeline], 
@@ -604,7 +607,7 @@ class MainWindow(QMainWindow):
 		self.group_button_widget.sub_button.clicked.connect(self._onSubGroupButtonClicked)
 		self.group_button_widget.setting_button.clicked.connect(self._onSettingGroupButtonClicked)
 
-		self.arrow_filter = ArrowKeyFilter(
+		self.key_filter = KeyFilter(
 			self.music_list_widget, self.group_button_widget, self.diff_button_set, 
 			self.data_manager.music_table, self.refresh, 
 			random_rolling_func=self.randomRolling, all_diff=None, parent=self
